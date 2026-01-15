@@ -52,3 +52,9 @@ coverage/
 *.bak
 *.backup
 backup_*.sql
+
+# Certificados SSL
+nginx/ssl/*.pem
+nginx/ssl/*.key
+nginx/ssl/*.crt
+!nginx/ssl/.gitkeep

@@ -56,10 +56,10 @@ CREATE TABLE IF NOT EXISTS snapshot_diagrama (
 CREATE TABLE IF NOT EXISTS config_ia (
     id_config SERIAL PRIMARY KEY,
     id_sala INTEGER NOT NULL UNIQUE,
-    modelo VARCHAR(100) DEFAULT 'gpt-4', -- gpt-4, gpt-3.5-turbo, claude-3, etc.
-    temperatura DECIMAL(3,2) DEFAULT 0.7,
-    max_tokens INTEGER DEFAULT 2000,
-    system_prompt TEXT DEFAULT 'Eres un asistente experto en diagramas UML que ayuda a crear y modificar diagramas basándose en las solicitudes del usuario.',
+    modelo VARCHAR(100) DEFAULT 'claude-sonnet-4.5', -- claude-sonnet-4.5, claude-opus-4, gpt-4, gpt-3.5-turbo
+    temperatura DECIMAL(3,2) DEFAULT 0.2,
+    max_tokens INTEGER DEFAULT 16000,
+    system_prompt TEXT DEFAULT 'Eres un experto en UML y diseño de software. Analiza diagramas, sugiere mejoras y genera código.',
     configuracion_extra JSONB,
     fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (id_sala) REFERENCES sala(id_sala) ON DELETE CASCADE

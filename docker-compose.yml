@@ -15,7 +15,8 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./backend-p1sw1/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./backend-p1sw1/database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+      - ./backend-p1sw1/database/chat-ia-schema.sql:/docker-entrypoint-initdb.d/02-chat-ia-schema.sql
+      - ./backend-p1sw1/database/seed.sql:/docker-entrypoint-initdb.d/03-seed.sql
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     networks:

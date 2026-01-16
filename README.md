@@ -171,8 +171,9 @@ modificacion-diagrama-ia      # Modificaciones IA
 ### Setup
 
 ```bash
-# Ejecutar schemas
+# Ejecutar schemas (en orden)
 docker exec -i postgres_container psql -U postgres -d parcial1sw1 < backend-p1sw1/database/schema.sql
+docker exec -i postgres_container psql -U postgres -d parcial1sw1 < backend-p1sw1/database/chat-ia-schema.sql
 
 # Datos de prueba (opcional)
 docker exec -i postgres_container psql -U postgres -d parcial1sw1 < backend-p1sw1/database/seed.sql
@@ -234,8 +235,8 @@ Proyecto desarrollado para fines académicos.
 
 ---
 
-**Universidad:** UMSA - Ingeniería de Sistemas  
-**Materia:** Sistemas Web 1  
+**Universidad:** UAGRM - Ingeniería de Sistemas  
+**Materia:** Ingeniería de Software 1  
 **Año:** 2026
 - `sala` - Salas de diagramación
 

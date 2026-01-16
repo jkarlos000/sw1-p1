@@ -139,8 +139,13 @@ docker-compose exec postgres pg_dump -U postgres parcial1sw1 > backup_$(date +%Y
 # Restaurar backup
 cat backup_20260115.sql | docker-compose exec -T postgres psql -U postgres -d parcial1sw1
 
+# Re-ejecutar schemas manualmente (si es necesario)
+docker-compose exec postgres psql -U postgres -d parcial1sw1 -f /docker-entrypoint-initdb.d/01-schema.sql
+docker-compose exec postgres psql -U postgres -d parcial1sw1 -f /docker-entrypoint-initdb.d/02-chat-ia-schema.sql
+docker-compose exec postgres psql -U postgres -d parcial1sw1 -f /docker-entrypoint-initdb.d/03-seed.sql
+
 # Limpiar datos
-docker-compose exec postgres psql -U postgres -d parcial1sw1 -f /docker-entrypoint-initdb.d/drop-tables.sql
+docker-compose exec postgres psql -U postgres -d parcial1sw1 -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
 ```
 
 ## 🔐 Seguridad en Producción

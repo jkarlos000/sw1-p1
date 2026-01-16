@@ -1,27 +1,103 @@
-# ClientSocket
+# Frontend - Sistema UML Colaborativo
 
-This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 17.1.3.
+Aplicación Angular 18 con editor UML colaborativo en tiempo real, chat con IA y generación de código.
 
-## Development server
+## 🚀 Inicio Rápido
 
-Run `ng serve` for a dev server. Navigate to `http://localhost:4200/`. The application will automatically reload if you change any of the source files.
+```bash
+npm install
+npm start
+```
 
-## Code scaffolding
+Abrir navegador en `http://localhost:4200`
 
-Run `ng generate component component-name` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module`.
+## 💻 Stack Tecnológico
 
-## Build
+- **Angular 18** - Framework (Standalone Components)
+- **Signals API** - Estado reactivo
+- **JointJS/Rappid** - Editor UML
+- **Tailwind CSS** - Estilos
+- **Socket.IO Client** - WebSockets tiempo real
 
-Run `ng build` to build the project. The build artifacts will be stored in the `dist/` directory.
+## 📁 Estructura
 
-## Running unit tests
+```
+src/app/
+├── auth/               # Login y registro
+├── diagramador/        # Editor UML principal
+│   ├── chat-ia/        # Chat con IA integrado
+│   ├── services/       # Servicios (websocket, rappid, chat-ia)
+│   └── interfaces/     # Tipos TypeScript
+├── chat/               # Chat general
+└── chatsw1/            # Salas de chat
+```
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
+## ⚙️ Configuración
 
-## Running end-to-end tests
+**Archivo:** `src/environments/environment.ts`
 
-Run `ng e2e` to execute the end-to-end tests via a platform of your choice. To use this command, you need to first add a package that implements end-to-end testing capabilities.
+```typescript
+export const environment = {
+  production: false,
+  apiUrl: 'http://localhost:3000',
+  socketUrl: 'http://localhost:3000'
+};
+```
 
-## Further help
+## ✨ Funcionalidades Principales
 
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.io/cli) page.
+### Editor UML
+- **Clases UML**: Crear, editar, eliminar con atributos
+- **Relaciones**: Herencia, composición, agregación, asociación, dependencia
+- **Colaboración tiempo real**: Múltiples usuarios editando simultáneamente
+- **Grid inteligente**: Posicionamiento automático 3x∞
+- **Persistencia**: Guardado automático en base de datos
+
+### Chat con IA
+- **Análisis de diagramas**: IA entiende estructura UML
+- **Modificaciones automáticas**: Agregar/eliminar clases y relaciones
+- **Sugerencias**: Mejoras de diseño y patrones
+- **Historial**: Conversaciones guardadas por sala
+
+### Exportación
+- **Spring Boot**: Genera proyecto completo (JPA, servicios, controladores)
+- **XML (EA)**: Exporta a Enterprise Architect
+- **JSON**: Formato JointJS
+- **Postman**: Colección API REST generada por IA
+
+## 🎯 Componentes Clave
+
+### DiagramadorComponent
+- Editor principal JointJS/Rappid
+- Eventos de modificación (drag, resize, edit)
+- Sincronización WebSocket
+- Integración con chat IA
+
+### ChatIaComponent
+- Interface de chat
+- Envío de contexto de diagrama
+- Procesamiento de modificaciones IA
+- Historial de conversaciones
+
+### DiagramadorService
+- Emisión de eventos WebSocket
+- Gestión de sala
+- Sincronización de cambios
+
+### ChatIaService
+- Comunicación HTTP con backend
+- Manejo de mensajes
+- Escucha de modificaciones IA
+
+## 🛠️ Herramientas del Editor
+
+| Botón | Función |
+|--------|----------|
+| **Clear Paper** | Limpiar diagrama (sincronizado) |
+| **QR** | Generar QR de sala |
+| **Export JSON** | Exportar diagrama JointJS |
+| **Importar JSON** | Importar diagrama |
+| **Importar XML** | Importar desde EA |
+| **Exportar XML** | Exportar a EA |
+| **Spring Boot** | Generar proyecto backend |
+| **Exportar Colección** | Generar Postman con IA |

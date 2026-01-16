@@ -61,6 +61,12 @@ export default class Server {
       socket.unirseReunion(cliente, this.io);
       socket.changedDiagrama(cliente, this.io);
 
+      // ========== CHAT CON IA ==========
+      socket.mensajeChatIA(cliente, this.io);
+      socket.respuestaChatIA(cliente, this.io);
+      socket.cargarHistorialChatIA(cliente, this.io);
+      socket.usuarioEscribiendoChat(cliente, this.io);
+
       // ========== FUNCIONES LEGACY (mantener por compatibilidad) ==========
       // CONECTAR A UNA SALA (versión antigua)
       socket.entrarSala(cliente, this.io);

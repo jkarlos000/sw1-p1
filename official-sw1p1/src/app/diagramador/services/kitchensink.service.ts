@@ -58,6 +58,10 @@ class KitchenSinkService {
   inspectorService: InspectorService;
   haloService: HaloService;
   keyboardService: KeyboardService;
+  
+  // Callback para limpiar diagrama y sincronizar
+  onClearDiagram?: () => void;
+
   constructor(
     el: HTMLElement,
     stencilService: StencilService,
@@ -930,7 +934,13 @@ ${
       },
       'layout:pointerclick': this.layoutDirectedGraph.bind(this),
       'snapline:change': this.changeSnapLines.bind(this),
-      'clear:pointerclick': this.graph.clear.bind(this.graph),
+      'clear:pointerclick': () => {
+        this.graph.clear();
+        // Llamar al callback para sincronizar con otros usuarios
+        if (this.onClearDiagram) {
+          this.onClearDiagram();
+        }
+      },
       'springBoot:pointerclick': () => {
         const jsonJoint = this.graph.toJSON();
         let elementosClases: ElementoClase[] = [];
@@ -1241,20 +1251,115 @@ El proyecto se ejecutará en el puerto 8081, como se especifica en el archivo \`
         });
 
         zip.generateAsync({ type: 'blob' }).then((content) => {
-          saveAs(content, 'complemento.zip');
+          // Solicitar nombre del proyecto al usuario
+          const nombreProyecto = prompt('Ingrese el nombre del proyecto Spring Boot:', 'mi-proyecto-spring');
+          
+          // Si el usuario cancela o no ingresa nombre, usar uno por defecto
+          const fileName = nombreProyecto && nombreProyecto.trim() !== '' 
+            ? `${nombreProyecto.trim()}.zip` 
+            : 'complemento.zip';
+          
+          saveAs(content, fileName);
+          console.log('✅ Proyecto Spring Boot generado:', fileName);
         });
+      },
+      'postmanCollection:pointerclick': async () => {
+        try {
+          console.log('🚀 Generando colección de Postman con IA...');
+          
+          // Obtener las clases del diagrama
+          const jsonJoint = this.graph.toJSON();
+          let elementosClases: ElementoClase[] = [];
+          
+          jsonJoint.cells.forEach((cell: any) => {
+            if (cell.type == 'standard.HeaderedRectangle') {
+              let elementoClase: ElementoClase = {
+                titulo: cell.attrs.headerText.text,
+                id: cell.id,
+                posicion: [cell.position.x, cell.position.y],
+                size: [cell.size.width, cell.size.height],
+                atributos: this.convertirCadenaALista(
+                  cell.attrs.bodyText.textWrap.text
+                ),
+                color: cell.attrs.body.stroke,
+              };
+              
+              // Filtrar clases intermedias (muchos a muchos)
+              if (!elementoClase.color.includes('#feb663')) {
+                elementosClases.push(elementoClase);
+              }
+            }
+          });
 
-        let downloadUrl: string = `${this.apiUrl}/users/download/spring-boot-project`; // URL del endpoint
-        this.http.get(downloadUrl, { responseType: 'blob' }).subscribe({
-          next: (blob: Blob) => {
-            const fileName = 'spring-boot-project.zip';
-            saveAs(blob, fileName);
-            console.log('File downloaded successfully');
-          },
-          error: (err) => {
-            console.error('Error downloading file', err);
-          },
-        });
+          if (elementosClases.length === 0) {
+            alert('No hay clases en el diagrama para generar la colección');
+            return;
+          }
+
+          // Construir descripción de las clases para el prompt
+          let descripcionClases = elementosClases.map(clase => {
+            const atributos = clase.atributos.map(a => `  - ${a.titulo}`).join('\n');
+            return `Clase: ${clase.titulo}\nAtributos:\n${atributos}`;
+          }).join('\n\n');
+
+          // Construir el prompt para Claude
+          const promptText = `Genera una colección de Postman v2.1 en formato JSON para una API REST Spring Boot basada en las siguientes clases JPA:
+
+${descripcionClases}
+
+REQUISITOS:
+1. Colección: "API REST - Gestión de Datos"
+2. URL base: {{baseUrl}} = http://localhost:8080/api
+3. Para cada clase, crea UNA carpeta con estos 5 endpoints:
+   - GET /[clase-plural]?page=0&size=10
+   - GET /[clase-plural]/{id}
+   - POST /[clase-plural] (con body JSON de ejemplo)
+   - PUT /[clase-plural]/{id} (con body JSON de ejemplo)
+   - DELETE /[clase-plural]/{id}
+4. Nombres en minúsculas y plural: "policias", "departamentos"
+5. Header: Content-Type: application/json
+6. NO incluyas el campo "response" en los requests (omite ejemplos de respuesta para reducir tamaño)
+
+IMPORTANTE: Responde SOLO el JSON válido de Postman, sin markdown, sin explicaciones. Estructura compacta.`;
+
+          // Llamar a la API de IA
+          const response = await this.http.post<any>(`${this.apiUrl}/chat-ia/generar-postman`, {
+            prompt: promptText
+          }).toPromise();
+
+          if (!response || !response.ok) {
+            throw new Error('Error al generar la colección con IA');
+          }
+
+          // Extraer el JSON de la respuesta
+          let collectionJson = response.coleccion;
+          
+          // Si viene como string, intentar parsearlo
+          if (typeof collectionJson === 'string') {
+            // Limpiar markdown si viene envuelto en ```json
+            collectionJson = collectionJson.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+            collectionJson = JSON.parse(collectionJson);
+          }
+
+          // Solicitar nombre de archivo
+          const nombreArchivo = window.prompt('Ingrese el nombre de la colección:', 'API-REST-Collection');
+          const fileName = nombreArchivo && nombreArchivo.trim() !== '' 
+            ? `${nombreArchivo.trim()}.postman_collection.json` 
+            : 'API-REST-Collection.postman_collection.json';
+
+          // Descargar el archivo JSON
+          const blob = new Blob([JSON.stringify(collectionJson, null, 2)], { 
+            type: 'application/json' 
+          });
+          saveAs(blob, fileName);
+          
+          console.log('✅ Colección de Postman generada:', fileName);
+          alert('¡Colección de Postman generada exitosamente! Puedes importarla en Postman.');
+          
+        } catch (error) {
+          console.error('❌ Error al generar colección de Postman:', error);
+          alert('Error al generar la colección de Postman. Revisa la consola para más detalles.');
+        }
       },
       'jsonExportar:pointerclick': () => {
         // LOGIC : Convertir el objeto JSON a una cadena
@@ -1376,26 +1481,51 @@ El proyecto se ejecutará en el puerto 8081, como se especifica en el archivo \`
           if (linkOcupados.some((link) => link.id === elementoLink.id)) {
             continue; // Saltar a la siguiente iteración si el link ya está ocupado
           }
+          
+          // Verificar si es una asociación muchos-a-muchos (con clase intermedia)
+          // Solo procesar como M:N si alguna de las clases conectadas tiene "_" en el nombre
           if (elementoLink.atributos.length == 1) {
-            let idUnificado: string = uuidv4();
+            // Buscar las clases origen y destino
+            const claseOrigen = elementosClases.find(c => c.id === elementoLink.origen.id);
+            const claseDestino = elementosClases.find(c => c.id === elementoLink.destino.id);
+            
+            // Verificar si alguna es clase intermedia (contiene "_")
+            const esAsociacionMuchosAMuchos = claseOrigen?.titulo.includes('_') || claseDestino?.titulo.includes('_');
+            
+            if (esAsociacionMuchosAMuchos) {
+              // PROCESAR COMO ASOCIACIÓN MUCHOS-A-MUCHOS
+              let idUnificado: string = uuidv4();
 
-            // READ : CLASE_A LINK CLASE_A_B LINK CLASE_B
-            // LOGIC : ALMACENA LA CLASE INTERMDIA AQUI
-            let claseOxClaseI: ElementoClase[] = [];
-            // LOGIC : FUNCION PARA BUSCAR SU OTRA MITAD
-            claseOxClaseI = this.getC0andCI(elementoLink, elementosClases);
+              // READ : CLASE_A LINK CLASE_A_B LINK CLASE_B
+              // LOGIC : ALMACENA LA CLASE INTERMDIA AQUI
+              let claseOxClaseI: ElementoClase[] = [];
+              // LOGIC : FUNCION PARA BUSCAR SU OTRA MITAD
+              claseOxClaseI = this.getC0andCI(elementoLink, elementosClases);
 
-            // LOGIC : ALMACENA LA CLASE FINAL
-            let claseF: ElementoClase;
-            // LOGIC : FUNCION PARA BUSCAR LA CLASE FINAL
-            claseF = this.getClaseFByName(claseOxClaseI, elementosClases);
-            // LOGIC : PARA ALMACENAR Y BUSCAR EL LINK ENTRE LA INTERMDIA Y LA FINAL
-            let linkTarget: ElementoLink;
-            linkTarget = this.getLinkCIxClaseF(
-              claseOxClaseI[1],
-              claseF,
-              elementosLinks
-            );
+              // LOGIC : ALMACENA LA CLASE FINAL
+              let claseF: ElementoClase;
+              // LOGIC : FUNCION PARA BUSCAR LA CLASE FINAL
+              claseF = this.getClaseFByName(claseOxClaseI, elementosClases);
+              
+              // Validar que la clase final sea diferente de la intermedia
+              if (claseF.id === claseOxClaseI[1].id) {
+                console.warn('No se encontró la clase final para la asociación M:N, se omitirá');
+                continue;
+              }
+              
+              // LOGIC : PARA ALMACENAR Y BUSCAR EL LINK ENTRE LA INTERMDIA Y LA FINAL
+              let linkTarget: ElementoLink;
+              linkTarget = this.getLinkCIxClaseF(
+                claseOxClaseI[1],
+                claseF,
+                elementosLinks
+              );
+
+              // Validar que se encontró el linkTarget
+              if (!linkTarget) {
+                console.error('No se encontró linkTarget para la clase intermedia:', claseOxClaseI[1].titulo, 'y clase final:', claseF.titulo);
+                continue;
+              }
 
             connectors += `
             	<connector xmi:idref="${idUnificado}">
@@ -1411,17 +1541,43 @@ El proyecto se ejecutará en el puerto 8081, como se especifica en el archivo \`
               </connector>
             `;
 
-            linkOcupados.push(elementoLink);
-            linkOcupados.push(linkTarget);
-            diagramElement.push(idUnificado);
-            connectorsXML.push({
-              id: idUnificado,
-              origen: claseOxClaseI[0].id,
-              destino: claseF.id,
-              destinoType: 'none',
-              properties: 'Association',
-              intermedia: claseOxClaseI[1].id,
-            });
+              linkOcupados.push(elementoLink);
+              linkOcupados.push(linkTarget);
+              diagramElement.push(idUnificado);
+              connectorsXML.push({
+                id: idUnificado,
+                origen: claseOxClaseI[0].id,
+                destino: claseF.id,
+                destinoType: 'none',
+                properties: 'Association',
+                intermedia: claseOxClaseI[1].id,
+              });
+            } else {
+              // PROCESAR COMO ASOCIACIÓN NORMAL (1 multiplicidad)
+              connectors += `
+              <connector xmi:idref="${elementoLink.id}">
+                <source xmi:idref="${elementoLink.origen.id}">
+                  <type multiplicity="${elementoLink.atributos[0]}" aggregation="none" containment="Unspecified" />
+                </source>
+                <target xmi:idref="${elementoLink.destino.id}">
+                  <type multiplicity="" aggregation="none" containment="Unspecified" />
+                </target>
+                <properties ea_type="Association" direction="Unspecified" />
+                <labels lb="${elementoLink.atributos[0]}" rb=""/>
+                <extendedProperties />
+              </connector>
+              `;
+              
+              diagramElement.push(elementoLink.id);
+              connectorsXML.push({
+                id: elementoLink.id,
+                origen: elementoLink.origen.id,
+                destino: elementoLink.destino.id,
+                destinoType: 'none',
+                properties: 'Association',
+                intermedia: '',
+              });
+            }
           } else {
             if (elementoLink.destino.normal == 'ASOCIACION') {
               connectors += `
@@ -1766,11 +1922,13 @@ El proyecto se ejecutará en el puerto 8081, como se especifica en el archivo \`
           antepenultimo +
           final;
 
-        // Generar un UUID de 6 caracteres
-        const uuid = uuidv4().slice(0, 6);
-
-        // Nombre del archivo
-        const fileName = `${uuid}.xml`;
+        // Solicitar nombre del archivo al usuario
+        const nombreArchivo = prompt('Ingrese el nombre del archivo XML (sin extensión):', 'diagrama_uml');
+        
+        // Si el usuario cancela o no ingresa nombre, usar uno por defecto
+        const fileName = nombreArchivo && nombreArchivo.trim() !== '' 
+          ? `${nombreArchivo.trim()}.xml` 
+          : `diagrama_${uuidv4().slice(0, 6)}.xml`;
 
         // Crear un blob con el contenido XML
         const blob = new Blob([cabezaXML], { type: 'application/xml' });
@@ -1785,6 +1943,8 @@ El proyecto se ejecutará en el puerto 8081, como se especifica en el archivo \`
 
         // Liberar el objeto URL
         URL.revokeObjectURL(link.href);
+        
+        console.log('✅ Archivo XML exportado:', fileName);
       },
 
       'grid-size:change': this.paper.setGridSize.bind(this.paper),

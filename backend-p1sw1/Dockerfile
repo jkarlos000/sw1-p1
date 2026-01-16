@@ -1,56 +1,57 @@
-# Dockerfile para Backend SW1
-# Node.js con TypeScript y Socket.IO
-# @author Jkarlos
+# Backend - Node.js + TypeScript + Socket.IO
+# Multi-stage build optimizado para producción
 
-# Etapa 1: Build
-FROM node:18-alpine AS builder
-
+# Etapa 1: Dependencias
+FROM node:20-alpine AS deps
 WORKDIR /app
 
-# Copiar archivos de dependencias
+# Instalar solo dependencias de producción
 COPY package*.json ./
-COPY tsconfig.json ./
+RUN npm ci --omit=dev --ignore-scripts && \
+    npm cache clean --force
 
-# Instalar dependencias
-RUN npm ci --only=production && npm cache clean --force
-
-# Copiar código fuente
-COPY . .
-
-# Compilar TypeScript
-RUN npm install -g typescript
-RUN tsc
-
-# Etapa 2: Production
-FROM node:18-alpine
-
+# Etapa 2: Build
+FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Copiar dependencias y código compilado
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/package*.json ./
+# Copiar dependencias
+COPY package*.json tsconfig.json ./
+RUN npm ci --ignore-scripts
 
-# Crear usuario no-root
+# Copiar código fuente y compilar
+COPY . .
+RUN npm run build || npx tsc
+
+# Etapa 3: Runtime
+FROM node:20-alpine AS runtime
+WORKDIR /app
+
+# Instalar wget para health checks
+RUN apk add --no-cache wget
+
+# Usuario no-root
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001
 
-# Cambiar permisos
-RUN chown -R nodejs:nodejs /app
+# Copiar dependencias y build
+COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
+COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
 
 # Cambiar a usuario no-root
 USER nodejs
 
-# Exponer puerto
+# Puerto
 EXPOSE 3000
 
-# Variables de entorno por defecto
-ENV NODE_ENV=production
-ENV PORT=3000
+# Variables de entorno
+ENV NODE_ENV=production \
+    PORT=3000 \
+    NODE_OPTIONS="--max-old-space-size=512"
 
-# Health check
+# Health check con wget
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD node -e "require('http').get('http://localhost:3000/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
+    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
-# Comando para iniciar
+# Iniciar aplicación
 CMD ["node", "dist/index.js"]

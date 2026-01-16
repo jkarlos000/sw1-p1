@@ -1,102 +1,89 @@
-# 🐳 Despliegue Docker - SW1 Project
+# 🐳 Docker - Sistema UML Colaborativo
 
-## 📋 Requisitos Previos
+Guía completa para desplegar el sistema con Docker y Docker Compose.
 
-- Docker Engine 20.10+
+## 📋 Requisitos
+
+- Docker Engine 24.0+
 - Docker Compose 2.0+
-- Al menos 2GB de RAM disponible
-- Puertos 80, 3000 y 5432 disponibles
+- 2GB RAM mínimo
+- Puertos libres: 80, 443, 3000, 5432
 
-## 🚀 Inicio Rápido
+## 🚀 Despliegue Rápido
 
 ### 1. Configurar Variables de Entorno
 
 ```bash
-# Copiar archivo de ejemplo
+# Copiar template
 cp .env.example .env
 
-# Editar con tus valores
+# Editar configuración
 nano .env
 ```
 
-**Importante:** Cambiar `POSTGRES_PASSWORD` por una contraseña segura.
-
-### 2. Actualizar Configuración del Frontend
-
-Editar `official-sw1p1/src/environments/environment.prod.ts`:
-
-```typescript
-export const environment = {
-  production: true,
-  apiUrl: 'http://YOUR_VPS_IP:3000'  // Cambiar por la IP de tu VPS
-};
+**Variables principales:**
+```env
+POSTGRES_PASSWORD=tu_password_seguro
+ANTHROPIC_API_KEY=sk-ant-xxxxx  # Opcional
+BACKEND_URL=http://backend:3000
 ```
 
-### 3. Actualizar Configuración de Base de Datos
-
-Editar `backend-p1sw1/database/config.ts`:
-
-```typescript
-export const pool = new Pool({
-    host: process.env.DB_HOST || 'localhost',
-    port: Number(process.env.DB_PORT) || 5432,
-    database: process.env.DB_NAME || 'sw1_database',
-    user: process.env.DB_USER || 'sw1_user',
-    password: process.env.DB_PASSWORD || 'your_password',
-    max: 20,
-    idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
-});
-```
-
-### 4. Construir y Levantar Servicios
+### 2. Iniciar Todo el Stack
 
 ```bash
-# Construir imágenes
-docker-compose build
+# Build y start en una línea
+docker-compose up -d --build
 
-# Levantar todos los servicios
-docker-compose up -d
-
-# Ver logs
+# Ver logs en tiempo real
 docker-compose logs -f
-```
 
-## 📦 Servicios Incluidos
-
-| Servicio | Puerto | Descripción |
-|----------|--------|-------------|
-| **Frontend** | 80 | Angular con Nginx |
-| **Backend** | 3000 | Node.js + Socket.IO |
-| **PostgreSQL** | 5432 | Base de datos |
-
-## 🔧 Comandos Útiles
-
-### Ver Estado de Servicios
-```bash
+# Verificar estado
 docker-compose ps
 ```
 
-### Ver Logs
-```bash
-# Todos los servicios
-docker-compose logs -f
+### 3. Acceder a la Aplicación
 
-# Solo backend
-docker-compose logs -f backend
+- **Frontend:** http://localhost
+- **Backend API:** http://localhost:3000
+- **PostgreSQL:** localhost:5432
 
-# Solo frontend
-docker-compose logs -f frontend
+## 📦 Arquitectura de Servicios
+
+### Stack Completo
+
+```
+┌─────────────────────────────────────────┐
+│  Nginx Proxy (Puerto 80/443)            │
+│  ├─ Frontend: http://frontend           │
+│  └─ Backend API: http://backend:3000    │
+└─────────────────────────────────────────┘
+            │               │
+    ┌───────┴───────┐   ┌──┴────────┐
+    │  Frontend     │   │  Backend  │
+    │  Angular 18   │   │  Node.js  │
+    │  + Nginx      │   │  + Socket │
+    └───────────────┘   └─────┬─────┘
+                              │
+                        ┌─────┴────────┐
+                        │  PostgreSQL  │
+                        │  16-alpine   │
+                        └──────────────┘
 ```
 
-### Reiniciar Servicios
-```bash
-# Todos
-docker-compose restart
+### Servicios Individuales
 
-# Uno específico
-docker-compose restart backend
-```
+| Servicio | Imagen | Puerto | Health Check |
+|----------|--------|--------|--------------|
+| **postgres** | postgres:16-alpine | 5432 | pg_isready |
+| **backend** | node:20-alpine | 3000 | /health |
+| **frontend** | nginx:1.26-alpine | 80 | / |
+| **nginx** | nginx:1.26-alpine | 80, 443 | /health |
+
+## 🔧 Comandos Útiles
+
+### Gestión de Servicios
+
+```bash
 
 ### Detener Servicios
 ```bash
@@ -110,59 +97,99 @@ docker-compose down
 docker-compose down -v
 ```
 
-### Ejecutar Comandos en Contenedores
+# Iniciar todos
+docker-compose up -d
+
+# Solo base de datos
+docker-compose up -d postgres
+
+# Rebuild específico
+docker-compose up -d --build backend
+
+# Ver estado
+docker-compose ps
+
+# Ver logs
+docker-compose logs -f
+docker-compose logs -f backend  # Solo backend
+```
+
+### Acceso a Contenedores
+
 ```bash
-# Entrar al backend
+# Shell en backend
 docker-compose exec backend sh
 
-# Entrar a PostgreSQL
-docker-compose exec postgres psql -U sw1_user -d sw1_database
+# Shell en PostgreSQL
+docker-compose exec postgres psql -U postgres -d parcial1sw1
 
-# Ver tablas en la BD
-docker-compose exec postgres psql -U sw1_user -d sw1_database -c "\dt"
+# Ver tablas
+docker-compose exec postgres psql -U postgres -d parcial1sw1 -c "\dt"
+
+# Ejecutar SQL
+docker-compose exec postgres psql -U postgres -d parcial1sw1 -c "SELECT * FROM usuario;"
+```
+
+### Gestión de Datos
+
+```bash
+# Backup de base de datos
+docker-compose exec postgres pg_dump -U postgres parcial1sw1 > backup_$(date +%Y%m%d).sql
+
+# Restaurar backup
+cat backup_20260115.sql | docker-compose exec -T postgres psql -U postgres -d parcial1sw1
+
+# Limpiar datos
+docker-compose exec postgres psql -U postgres -d parcial1sw1 -f /docker-entrypoint-initdb.d/drop-tables.sql
 ```
 
 ## 🔐 Seguridad en Producción
 
-### 1. Configurar Firewall
+### 1. Variables de Entorno Seguras
+
+```env
+# Generar password seguro
+POSTGRES_PASSWORD=$(openssl rand -base64 32)
+
+# CORS restrictivo
+CORS_ORIGIN=https://tudominio.com
+
+# Modo producción
+NODE_ENV=production
+```
+
+### 2. Firewall
+
 ```bash
-# Permitir solo puertos necesarios
+# UFW (Ubuntu)
 sudo ufw allow 80/tcp
 sudo ufw allow 443/tcp
-sudo ufw allow 22/tcp
 sudo ufw enable
+
+# Firewalld (CentOS/RHEL)
+sudo firewall-cmd --permanent --add-service=http
+sudo firewall-cmd --permanent --add-service=https
+sudo firewall-cmd --reload
 ```
 
-### 2. Usar HTTPS (Recomendado)
+### 3. HTTPS con Let's Encrypt
 
-Agregar servicio de Nginx reverse proxy con SSL:
+```bash
+# Instalar certbot
+sudo apt install certbot
 
-```yaml
-# Agregar en docker-compose.yml
-  nginx-proxy:
-    image: nginx:alpine
-    ports:
-      - "443:443"
-    volumes:
-      - ./nginx-ssl.conf:/etc/nginx/nginx.conf
-      - ./ssl:/etc/nginx/ssl
-    depends_on:
-      - frontend
-```
+# Obtener certificado
+sudo certbot certonly --standalone -d tudominio.com
 
-### 3. Cambiar Contraseñas
-- PostgreSQL: En archivo `.env`
-- Usuario admin: En la base de datos
-
-### 4. Configurar CORS Restrictivo
-```env
-# En .env
-CORS_ORIGIN=https://tudominio.com
+# Actualizar nginx/nginx.conf con rutas SSL
+# /etc/letsencrypt/live/tudominio.com/fullchain.pem
+# /etc/letsencrypt/live/tudominio.com/privkey.pem
 ```
 
 ## 📊 Monitoreo
 
 ### Health Checks
+
 ```bash
 # Backend
 curl http://localhost:3000/health
@@ -171,75 +198,109 @@ curl http://localhost:3000/health
 curl http://localhost/
 
 # PostgreSQL
-docker-compose exec postgres pg_isready
+docker-compose exec postgres pg_isready -U postgres
+
+# Estado de health checks
+docker inspect sw1-backend --format='{{.State.Health.Status}}'
 ```
 
-### Recursos del Sistema
+### Recursos
+
 ```bash
-# Ver uso de recursos
+# Uso en tiempo real
 docker stats
 
-# Ver espacio en disco
+# Espacio en disco
 docker system df
+
+# Logs de tamaño limitado
+docker-compose logs --tail=100 backend
 ```
 
-## 🔄 Actualización
+## 🔄 Actualización y Mantenimiento
 
-### Actualizar Código
+### Actualizar Aplicación
+
 ```bash
-# En tu máquina de desarrollo
+# Pull cambios
 git pull origin main
 
-# En el VPS
-git pull origin main
-docker-compose build
-docker-compose up -d
+# Rebuild y restart
+docker-compose up -d --build
+# Verificar CORS en backend
+docker-compose exec backend env | grep CORS
+
+# Ver logs de WebSocket
+docker-compose logs -f backend | grep socket
+
+# Reiniciar backend
+docker-compose restart backend
 ```
 
-### Backup de Base de Datos
-```bash
-# Crear backup
-docker-compose exec postgres pg_dump -U sw1_user sw1_database > backup_$(date +%Y%m%d).sql
+### IA no responde
 
-# Restaurar backup
-cat backup_20260115.sql | docker-compose exec -T postgres psql -U sw1_user -d sw1_database
+```bash
+# Verificar API keys
+docker-compose exec backend env | grep API_KEY
+
+# Ver logs de IA
+docker-compose logs backend | grep -i claude
+docker-compose logs backend | grep -i openai
+
+# Verificar modelo configurado
+docker-compose exec backend env | grep MODELO_IA
 ```
 
-## 🐛 Troubleshooting
+## 🎯 Comandos Rápidos
 
-### El Backend no se conecta a PostgreSQL
 ```bash
-# Verificar que postgres esté corriendo
-docker-compose ps postgres
+# Setup completo
+cp .env.example .env && docker-compose up -d --build
 
-# Ver logs de conexión
-docker-compose logs postgres | grep "database system is ready"
+# Restart todo
+docker-compose restart
 
-# Verificar variables de entorno
-docker-compose exec backend env | grep DB_
+# Ver todo
+docker-compose ps && docker-compose logs --tail=50
+
+# Limpieza total (⚠️ borra todo)
+docker-compose down -v && docker system prune -af
+
+# Backup completo
+mkdir -p backups && \
+docker-compose exec postgres pg_dump -U postgres parcial1sw1 > backups/db_$(date +%Y%m%d_%H%M%S).sql
+
+# Logs en tiempo real de todos los servicios
+docker-compose logs -f --tail=100
 ```
 
-### El Frontend no carga
-```bash
-# Verificar logs de nginx
-docker-compose logs frontend
+## 📚 Recursos Adicionales
 
-# Verificar archivos compilados
-docker-compose exec frontend ls -la /usr/share/nginx/html
-```
+### Archivos de Configuración
 
-### Error de permisos en PostgreSQL
-```bash
-# Eliminar volumen y recrear
-docker-compose down -v
-docker-compose up -d
-```
+- **docker-compose.yml** - Orquestación de servicios
+- **.env.example** - Variables de entorno template
+- **backend-p1sw1/Dockerfile** - Imagen del backend
+- **official-sw1p1/Dockerfile** - Imagen del frontend
+- **nginx/nginx.conf** - Configuración Nginx proxy
 
-### Puerto ya en uso
-```bash
-# Ver qué está usando el puerto
-sudo lsof -i :3000
-sudo lsof -i :80
+### Documentación
+
+- [README principal](README.md)
+- [Backend README](backend-p1sw1/README.md)
+- [Frontend README](official-sw1p1/README.md)
+
+### Puertos y URLs
+
+| Servicio | Desarrollo | Docker | Producción |
+|----------|------------|--------|------------|
+| Frontend | :4200 | :80 | https://dominio.com |
+| Backend | :3000 | :3000 | https://api.dominio.com |
+| PostgreSQL | :5432 | :5432 | (interno) |
+
+---
+
+**Nota:** Este proyecto usa Docker Compose v2 (sin guión). Si usas v1, reemplaza `docker-compose` por `docker compose`.bash
 
 # Cambiar puertos en docker-compose.yml
 # Por ejemplo: "8080:80" para frontend

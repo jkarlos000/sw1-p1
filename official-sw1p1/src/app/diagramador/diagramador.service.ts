@@ -28,6 +28,23 @@ export class DiagramadorService {
     }
   }
 
+  emitEntraSala() {
+    const salaDiagrama = this.userAuth.getSalaDiagrama();
+    const usuario = this.userAuth.getUserAuth();
+    
+    if (salaDiagrama && usuario) {
+      this.wsService.emit('entra-sala', {
+        sala: salaDiagrama.nombre,
+        usuario: {
+          id: usuario.id.toString(),
+          nombre: usuario.email,
+          email: usuario.email
+        }
+      });
+      console.log(`📍 Usuario ${usuario.email} uniéndose a sala: ${salaDiagrama.nombre}`);
+    }
+  }
+
   contenidoVerifDiagramaBD(nombreSala: string): Observable<any> {
     return this.http.get<any>(`${this.apiUrl}/salas/` + nombreSala);
   }

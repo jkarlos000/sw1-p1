@@ -293,13 +293,26 @@ export const unirseReunion = async (cliente: Socket, io: socketIO.Server) => {
 
 // CHANGED DIAGRAMA (para sincronización en tiempo real)
 export const changedDiagrama = (cliente: Socket, io: socketIO.Server) => {
-    cliente.on('changed-diagrama', (data: any) => {
+    cliente.on('changed-diagrama', async (data: any) => {
         console.log('changed-diagrama recibido:', data.sala);
         
         if (data.sala) {
-            // Emitir a todos excepto al emisor en la misma sala
-            cliente.broadcast.to(data.sala).emit('changed-diagrama', data);
-            console.log(`Diagrama sincronizado en sala: ${data.sala}`);
+            try {
+                // Guardar diagrama en BD
+                await pool.query(
+                    'UPDATE sala SET informacion = $1 WHERE nombre_sala = $2',
+                    [data.diagrama, data.sala]
+                );
+                console.log(`✅ Diagrama guardado en BD para sala: ${data.sala}`);
+                
+                // Emitir a todos excepto al emisor en la misma sala
+                cliente.broadcast.to(data.sala).emit('changed-diagrama', data);
+                console.log(`📡 Diagrama sincronizado en sala: ${data.sala}`);
+            } catch (error) {
+                console.error('❌ Error al guardar diagrama en BD:', error);
+                // Aún así emitir el cambio para sincronización en tiempo real
+                cliente.broadcast.to(data.sala).emit('changed-diagrama', data);
+            }
         } else {
             // Si no hay sala, emitir a todos excepto al emisor
             cliente.broadcast.emit('changed-diagrama', data);
@@ -429,3 +442,168 @@ export const mensajePrueba = (cliente: Socket, io: socketIO.Server) => {
 }
 
 // COLABORADORES SALA
+
+// ========== EVENTOS DE CHAT CON IA ==========
+
+/**
+ * ENVIAR MENSAJE AL CHAT DE IA
+ * Evento para enviar mensaje y recibir respuesta de la IA en tiempo real
+ */
+export const mensajeChatIA = (cliente: Socket, io: socketIO.Server) => {
+    cliente.on('mensaje-chat-ia', async (data: {
+        sala: string;
+        id_conversacion: number;
+        id_usuario: number;
+        contenido: string;
+        diagrama_actual?: any;
+        usuario_email?: string;
+    }) => {
+        console.log('mensaje-chat-ia:', data);
+
+        if (!data.sala || !data.contenido || !data.id_usuario) {
+            io.to(cliente.id).emit('error-msg-servidor', 'Datos incompletos para mensaje de chat IA');
+            return;
+        }
+
+        try {
+            // Obtener email del usuario si no viene en data
+            let usuarioEmail = data.usuario_email;
+            
+            if (!usuarioEmail) {
+                const usuarioQuery = await pool.query(
+                    'SELECT email FROM usuario WHERE id_usuario = $1',
+                    [data.id_usuario]
+                );
+                
+                if (usuarioQuery.rows.length > 0) {
+                    usuarioEmail = usuarioQuery.rows[0].email;
+                }
+            }
+
+            // Emitir inmediatamente el mensaje del usuario a todos en la sala
+            io.to(data.sala).emit('nuevo-mensaje-chat-ia', {
+                tipo: 'usuario',
+                contenido: data.contenido,
+                id_usuario: data.id_usuario,
+                usuario_email: usuarioEmail,
+                fecha_envio: new Date(),
+                temporal: true // Indica que aún no está guardado en BD
+            });
+
+            // Indicar que la IA está escribiendo
+            io.to(data.sala).emit('ia-escribiendo', { sala: data.sala, escribiendo: true });
+
+            // Aquí se procesaría con la IA (el controller lo maneja via HTTP)
+            // Por ahora solo confirmamos la recepción
+            setTimeout(() => {
+                io.to(data.sala).emit('ia-escribiendo', { sala: data.sala, escribiendo: false });
+            }, 1000);
+
+        } catch (error) {
+            console.error('Error al procesar mensaje de chat IA:', error);
+            io.to(cliente.id).emit('error-msg-servidor', 'Error al procesar mensaje de chat IA');
+        }
+    });
+};
+
+/**
+ * RESPUESTA DE IA RECIBIDA
+ * Broadcasting de respuesta de IA a todos los usuarios de la sala
+ */
+export const respuestaChatIA = (cliente: Socket, io: socketIO.Server) => {
+    cliente.on('respuesta-chat-ia', (data: {
+        sala: string;
+        mensaje: any;
+        modificacion_diagrama?: any;
+    }) => {
+        console.log('respuesta-chat-ia:', data.sala);
+
+        if (!data.sala || !data.mensaje) {
+            return;
+        }
+
+        // Emitir respuesta de IA a toda la sala
+        io.to(data.sala).emit('nuevo-mensaje-chat-ia', {
+            tipo: 'ia',
+            contenido: data.mensaje.contenido,
+            metadata: data.mensaje.metadata,
+            fecha_envio: new Date(),
+            usuario_email: data.mensaje.usuario_email || 'IA'
+        });
+
+        // Si hay modificación del diagrama, emitirla
+        if (data.modificacion_diagrama) {
+            io.to(data.sala).emit('modificacion-diagrama-ia', {
+                diagrama: data.modificacion_diagrama,
+                descripcion: 'Modificación sugerida por IA'
+            });
+        }
+    });
+};
+
+/**
+ * CARGAR HISTORIAL DEL CHAT
+ * Evento para solicitar historial previo del chat
+ */
+export const cargarHistorialChatIA = (cliente: Socket, io: socketIO.Server) => {
+    cliente.on('cargar-historial-chat-ia', async (data: {
+        sala: string;
+        id_conversacion: number;
+    }) => {
+        console.log('cargar-historial-chat-ia:', data);
+
+        if (!data.id_conversacion) {
+            io.to(cliente.id).emit('error-msg-servidor', 'ID de conversación requerido');
+            return;
+        }
+
+        try {
+            // Obtener mensajes de la BD
+            const mensajes = await pool.query(
+                `SELECT 
+                    m.id_mensaje,
+                    m.tipo_mensaje,
+                    m.contenido,
+                    m.metadata,
+                    m.fecha_envio,
+                    u.email as usuario_email
+                FROM mensaje_chat_ia m
+                LEFT JOIN usuario u ON m.id_usuario = u.id_usuario
+                WHERE m.id_conversacion = $1
+                ORDER BY m.fecha_envio ASC
+                LIMIT 50`,
+                [data.id_conversacion]
+            );
+
+            // Enviar historial al cliente que lo solicitó
+            io.to(cliente.id).emit('historial-chat-ia', {
+                ok: true,
+                mensajes: mensajes.rows
+            });
+
+        } catch (error) {
+            console.error('Error al cargar historial:', error);
+            io.to(cliente.id).emit('error-msg-servidor', 'Error al cargar historial del chat');
+        }
+    });
+};
+
+/**
+ * USUARIO ESCRIBIENDO EN CHAT
+ * Para mostrar indicador de "usuario escribiendo..."
+ */
+export const usuarioEscribiendoChat = (cliente: Socket, io: socketIO.Server) => {
+    cliente.on('usuario-escribiendo-chat', (data: {
+        sala: string;
+        usuario: string;
+        escribiendo: boolean;
+    }) => {
+        if (!data.sala) return;
+
+        // Emitir a todos excepto al emisor
+        cliente.broadcast.to(data.sala).emit('usuario-escribiendo-chat', {
+            usuario: data.usuario,
+            escribiendo: data.escribiendo
+        });
+    });
+};

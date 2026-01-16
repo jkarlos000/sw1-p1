@@ -1,27 +1,23 @@
-/**
- * API REST Routes
- * Endpoints HTTP para autenticación, salas y operaciones con BD
- * 
- * @author Jkarlos
- * @date 2026
- */
-
 import axios from "axios";
 import { Request, Response, Router } from "express";
 import { login, registre } from "../controller/auth.controller";
+import { 
+  obtenerConversacionActiva,
+  crearConversacion,
+  obtenerHistorialMensajes,
+  enviarMensajeIA,
+  guardarSnapshotDiagrama,
+  obtenerSnapshots,
+  configurarIA,
+  generarColeccionPostman
+} from "../controller/chat-ia.controller";
 import { pool } from "../database/config";
 const router = Router();
 
-// ========================================
-// HEALTH CHECK
-// ========================================
 router.get("/health", (req: Request, res: Response) => {
   res.status(200).json({ ok: true, status: "healthy", timestamp: new Date().toISOString() });
 });
 
-// ========================================
-// RUTAS DE AUTENTICACIÓN
-// ========================================
 router.post("/users/confirm-login", login);
 router.post("/users", registre);
 
@@ -101,6 +97,7 @@ router.get("/salas/:nombreSala", async (req: Request, res: Response) => {
     if (consulta.rowCount! > 0) {
       console.log('Diagrama de sala obtenido correctamente');
       res.json({
+        id_sala: consulta.rows[0].id_sala,
         sala: consulta.rows[0].nombre_sala,
         diagrama: consulta.rows[0].informacion || '',
         ok: true,
@@ -324,4 +321,33 @@ router.post("/borrarSala", async (req: Request, res: Response) => {
     res.status(500).json({ ok: false, mensaje: 'Error en consulta BD' });
   }
 });
+
+// ========================================
+// RUTAS DE CHAT CON IA
+// ========================================
+
+// Obtener conversación activa de una sala
+router.get("/chat-ia/conversacion/sala/:id_sala", obtenerConversacionActiva);
+
+// Crear nueva conversación
+router.post("/chat-ia/conversacion", crearConversacion);
+
+// Obtener historial de mensajes de una conversación
+router.get("/chat-ia/mensajes/:id_conversacion", obtenerHistorialMensajes);
+
+// Enviar mensaje y obtener respuesta de IA
+router.post("/chat-ia/mensaje", enviarMensajeIA);
+
+// Guardar snapshot del diagrama
+router.post("/chat-ia/snapshot", guardarSnapshotDiagrama);
+
+// Obtener snapshots de una conversación
+router.get("/chat-ia/snapshots/:id_conversacion", obtenerSnapshots);
+
+// Configurar IA para una sala
+router.post("/chat-ia/config", configurarIA);
+
+// Generar colección de Postman con IA
+router.post("/chat-ia/generar-postman", generarColeccionPostman);
+
 export default router;

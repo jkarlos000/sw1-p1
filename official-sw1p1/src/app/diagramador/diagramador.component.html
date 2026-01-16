@@ -72,4 +72,12 @@
       </div>
     </div>
   </div>
+
+  <!-- Chat con IA -->
+  <app-chat-ia
+    *ngIf="nombreSala"
+    [sala]="nombreSala"
+    [idSala]="idSala"
+    [getDiagramaActual]="getDiagramaActual.bind(this)"
+  ></app-chat-ia>
 </div>

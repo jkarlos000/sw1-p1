@@ -6,6 +6,10 @@
  * @date 2026
  */
 
+import dotenv from 'dotenv';
+// Cargar variables de entorno ANTES de importar cualquier otra cosa
+dotenv.config();
+
 import bodyParser from "body-parser";
 import cors from "cors";
 import Server from "./classes/server";

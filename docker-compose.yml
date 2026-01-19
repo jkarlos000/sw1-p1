@@ -14,9 +14,8 @@ services:
       PGDATA: /var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./backend-p1sw1/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./backend-p1sw1/database/chat-ia-schema.sql:/docker-entrypoint-initdb.d/02-chat-ia-schema.sql
-      - ./backend-p1sw1/database/seed.sql:/docker-entrypoint-initdb.d/03-seed.sql
+      - ./backend-p1sw1/database/schema-completo.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./backend-p1sw1/database/seed-completo.sql:/docker-entrypoint-initdb.d/02-seed.sql
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
     networks:
@@ -53,10 +52,17 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       MODELO_IA: ${MODELO_IA:-claude-sonnet-4.5}
+      # Transcripción Multimodal (opcional)
+      TRANSCRIPTION_PROVIDER: ${TRANSCRIPTION_PROVIDER:-assemblyai}
+      ASSEMBLYAI_API_KEY: ${ASSEMBLYAI_API_KEY:-}
+      DEEPGRAM_API_KEY: ${DEEPGRAM_API_KEY:-}
+      GOOGLE_APPLICATION_CREDENTIALS: ${GOOGLE_APPLICATION_CREDENTIALS:-}
       # CORS
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost}
     expose:
       - "3000"
+    volumes:
+      - backend_uploads:/app/uploads
     networks:
       - sw1-network
     healthcheck:
@@ -123,3 +129,6 @@ volumes:
   postgres_data:
     driver: local
     name: sw1-postgres-data
+  backend_uploads:
+    driver: local
+    name: sw1-backend-uploads

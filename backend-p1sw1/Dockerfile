@@ -38,6 +38,9 @@ COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
 COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
 
+# Crear directorio para uploads multimodales
+RUN mkdir -p /app/uploads && chown nodejs:nodejs /app/uploads
+
 # Cambiar a usuario no-root
 USER nodejs
 

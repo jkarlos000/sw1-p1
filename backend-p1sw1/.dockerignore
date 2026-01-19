@@ -11,3 +11,6 @@ README.md
 coverage
 .nyc_output
 *.log
+database/*.old
+uploads/*
+!uploads/.gitkeep

@@ -7,16 +7,17 @@
  */
 
 import { CommonModule } from '@angular/common';
-import { Component, effect, EventEmitter, inject, Input, OnChanges, OnDestroy, OnInit, Output, signal, SimpleChanges } from '@angular/core';
+import { Component, effect, EventEmitter, inject, Input, OnChanges, OnDestroy, OnInit, Output, signal, SimpleChanges, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../../auth/auth.service';
 import { ChatIaService, Conversacion, Mensaje } from '../services/chat-ia.service';
+import { ChatAttachmentsComponent, AttachmentData } from './chat-attachments.component';
 
 @Component({
   selector: 'app-chat-ia',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, ChatAttachmentsComponent],
   templateUrl: './chat-ia.component.html',
   styleUrl: './chat-ia.component.css'
 })
@@ -25,6 +26,8 @@ export class ChatIaComponent implements OnInit, OnChanges, OnDestroy {
   @Input() idSala!: number;
   @Input() getDiagramaActual!: () => any; // Cambiar a función
   // @Output() modificarDiagrama - Eliminado: Las modificaciones se manejan por WebSocket
+
+  @ViewChild(ChatAttachmentsComponent) attachmentsComponent!: ChatAttachmentsComponent;
 
   private chatService = inject(ChatIaService);
   private authService = inject(AuthService);
@@ -37,9 +40,21 @@ export class ChatIaComponent implements OnInit, OnChanges, OnDestroy {
   public usuarioEscribiendo = signal<string | null>(null);
   public chatAbierto = signal<boolean>(false);
   public cargando = signal<boolean>(false);
+  public attachments = signal<AttachmentData>({ audios: [], imagenes: [] });
 
   private subscriptions: Subscription[] = [];
   private chatInicializado = false;
+
+  constructor() {
+    // Los effect() deben ser llamados en el constructor para estar en el contexto de inyección
+    effect(() => {
+      this.iaEscribiendo.set(this.chatService.iaEscribiendo());
+    });
+
+    effect(() => {
+      this.usuarioEscribiendo.set(this.chatService.usuarioEscribiendo());
+    });
+  }
 
   ngOnInit(): void {
     this.suscribirseAMensajes();
@@ -138,15 +153,6 @@ export class ChatIaComponent implements OnInit, OnChanges, OnDestroy {
       setTimeout(() => this.scrollToBottom(), 100);
     });
 
-    // Usar effect para reaccionar a cambios en signals
-    effect(() => {
-      this.iaEscribiendo.set(this.chatService.iaEscribiendo());
-    });
-
-    effect(() => {
-      this.usuarioEscribiendo.set(this.chatService.usuarioEscribiendo());
-    });
-
     this.subscriptions.push(sub1);
   }
 
@@ -154,7 +160,11 @@ export class ChatIaComponent implements OnInit, OnChanges, OnDestroy {
 
   async enviarMensaje(): Promise<void> {
     const contenido = this.mensajeInput().trim();
-    if (!contenido || !this.conversacionActual()) return;
+    const currentAttachments = this.attachments();
+    const hasAttachments = currentAttachments.audios.length > 0 || currentAttachments.imagenes.length > 0;
+    
+    if (!contenido && !hasAttachments) return;
+    if (!this.conversacionActual()) return;
 
     const usuario = this.authService.getUserAuth();
     if (!usuario || !usuario.id) {
@@ -164,38 +174,94 @@ export class ChatIaComponent implements OnInit, OnChanges, OnDestroy {
 
     // Limpiar input inmediatamente
     this.mensajeInput.set('');
+    this.attachments.set({ audios: [], imagenes: [] });
+    
+    // Limpiar attachments en el componente hijo
+    if (this.attachmentsComponent) {
+      this.attachmentsComponent.clearAll();
+    }
 
     // Obtener diagrama actual en el momento del envío
     const diagramaActual = this.getDiagramaActual ? this.getDiagramaActual() : null;
 
     try {
-      // Enviar via WebSocket para sincronización inmediata
-      this.chatService.enviarMensajeWebSocket(
-        this.sala,
-        this.conversacionActual()!.id_conversacion,
-        usuario.id,
-        contenido,
-        diagramaActual,
-        usuario.email
-      );
+      if (hasAttachments) {
+        // Agregar mensaje temporal del usuario inmediatamente para feedback visual
+        const mensajeTemporal: Mensaje = {
+          id_conversacion: this.conversacionActual()!.id_conversacion,
+          id_usuario: usuario.id,
+          tipo_mensaje: 'usuario',
+          contenido: contenido || '[Adjuntos: ' + 
+            (currentAttachments.audios.length > 0 ? currentAttachments.audios.length + ' audio(s)' : '') +
+            (currentAttachments.audios.length > 0 && currentAttachments.imagenes.length > 0 ? ', ' : '') +
+            (currentAttachments.imagenes.length > 0 ? currentAttachments.imagenes.length + ' imagen(es)' : '') + ']',
+          tiene_attachments: true,
+          metadata_multimodal: {
+            num_audios: currentAttachments.audios.length,
+            num_imagenes: currentAttachments.imagenes.length
+          },
+          fecha_envio: new Date(),
+          usuario_email: usuario.email,
+          temporal: true
+        };
+        this.mensajes.update(mensajes => [...mensajes, mensajeTemporal]);
 
-      // Enviar via HTTP para procesamiento con IA
-      const respuesta = await this.chatService.enviarMensajeIA(
-        this.conversacionActual()!.id_conversacion,
-        this.idSala,
-        usuario.id,
-        contenido,
-        diagramaActual
-      ).toPromise();
+        // Enviar mensaje multimodal con attachments
+        const respuesta = await this.chatService.enviarMensajeMultimodal(
+          this.conversacionActual()!.id_conversacion,
+          this.idSala,
+          usuario.id,
+          contenido,
+          diagramaActual,
+          currentAttachments.audios,
+          currentAttachments.imagenes
+        ).toPromise();
 
-      if (respuesta.ok) {
-        // NO procesamos el mensaje_ia aquí porque llegará via WebSocket
-        // Las modificaciones del diagrama también llegan por WebSocket (modificacion-diagrama-ia)
-        // No necesitamos hacer nada más aquí
+        if (respuesta.ok) {
+          console.log('✅ Mensaje multimodal enviado correctamente', respuesta);
+          
+          // Remover mensaje temporal
+          this.mensajes.update(mensajes => mensajes.filter(m => !m.temporal));
+          
+          // Los mensajes reales llegarán por WebSocket, no los agregamos aquí para evitar duplicados
+          // Las modificaciones del diagrama también llegarán por WebSocket (modificacion-diagrama-ia)
+          // El diagramador.component.ts está suscrito a chatIaService.modificacionDiagrama$
+        }
+      } else {
+        // Enviar via WebSocket para sincronización inmediata
+        this.chatService.enviarMensajeWebSocket(
+          this.sala,
+          this.conversacionActual()!.id_conversacion,
+          usuario.id,
+          contenido,
+          diagramaActual,
+          usuario.email
+        );
+
+        // Enviar via HTTP para procesamiento con IA
+        const respuesta = await this.chatService.enviarMensajeIA(
+          this.conversacionActual()!.id_conversacion,
+          this.idSala,
+          usuario.id,
+          contenido,
+          diagramaActual
+        ).toPromise();
+
+        if (respuesta.ok) {
+          // NO procesamos el mensaje_ia aquí porque llegará via WebSocket
+          // Las modificaciones del diagrama también llegan por WebSocket (modificacion-diagrama-ia)
+          // No necesitamos hacer nada más aquí
+        }
       }
     } catch (error) {
       console.error('Error al enviar mensaje:', error);
     }
+  }
+
+  // ========== MANEJO DE ATTACHMENTS ==========
+
+  onAttachmentsChange(attachmentData: AttachmentData): void {
+    this.attachments.set(attachmentData);
   }
 
   // ========== EVENTOS DE INPUT ==========

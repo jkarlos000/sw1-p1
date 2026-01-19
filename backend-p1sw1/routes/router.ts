@@ -11,6 +11,12 @@ import {
   configurarIA,
   generarColeccionPostman
 } from "../controller/chat-ia.controller";
+import { 
+  enviarMensajeMultimodal,
+  obtenerAttachments,
+  descargarAttachment
+} from "../controller/chat-ia-multimodal.controller";
+import { uploadMultipleFiles } from "../middleware/upload.middleware";
 import { pool } from "../database/config";
 const router = Router();
 
@@ -349,5 +355,18 @@ router.post("/chat-ia/config", configurarIA);
 
 // Generar colección de Postman con IA
 router.post("/chat-ia/generar-postman", generarColeccionPostman);
+
+// ========================================
+// RUTAS DE CHAT IA MULTIMODAL (Audio + Imágenes)
+// ========================================
+
+// Enviar mensaje multimodal (texto + audios + imágenes)
+router.post("/chat-ia/mensaje-multimodal", uploadMultipleFiles, enviarMensajeMultimodal);
+
+// Obtener attachments de un mensaje
+router.get("/chat-ia/mensaje/:id_mensaje/attachments", obtenerAttachments);
+
+// Descargar attachment
+router.get("/chat-ia/attachment/:id/download", descargarAttachment);
 
 export default router;

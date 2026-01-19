@@ -506,8 +506,9 @@ export const configurarIA = async (req: Request, res: Response) => {
 
 /**
  * Analiza el diagrama actual y extrae información legible
+ * EXPORTADA para uso en chat-ia-multimodal.controller.ts
  */
-function analizarDiagrama(diagrama: any): string {
+export function analizarDiagrama(diagrama: any): string {
     try {
         if (!diagrama) return 'No hay diagrama disponible';
 
@@ -633,8 +634,9 @@ function analizarDiagrama(diagrama: any): string {
 
 /**
  * Procesa el mensaje con la IA configurada (OpenAI o Claude)
+ * EXPORTADA para uso en chat-ia-multimodal.controller.ts
  */
-async function procesarConIA(config: any, mensajes: any[]): Promise<any> {
+export async function procesarConIA(config: any, mensajes: any[]): Promise<any> {
     const tiempoInicio = Date.now();
     
     try {

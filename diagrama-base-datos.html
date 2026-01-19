@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagrama Base de Datos - Sistema UML Colaborativo</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .mermaid {
+            text-align: center;
+            background: white;
+            padding: 20px;
+        }
+        .legend {
+            margin-top: 30px;
+            padding: 15px;
+            background: #f9f9f9;
+            border-left: 4px solid #4CAF50;
+        }
+        .legend h3 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+        .legend ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        .legend li {
+            margin: 8px 0;
+            padding-left: 20px;
+            position: relative;
+        }
+        .legend li:before {
+            content: "▸";
+            position: absolute;
+            left: 0;
+            color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Diagrama de Base de Datos - Sistema UML Colaborativo con IA</h1>
+        
+        <div class="mermaid">
+erDiagram
+    %% ============================================
+    %% TABLAS PRINCIPALES
+    %% ============================================
+    
+    usuario {
+        SERIAL id_usuario PK
+        VARCHAR_255 email UK "NOT NULL"
+        VARCHAR_255 password "NOT NULL"
+        TIMESTAMP fecha_creacion
+    }
+    
+    sala {
+        SERIAL id_sala PK
+        VARCHAR_255 nombre_sala UK "NOT NULL"
+        VARCHAR_255 host_sala FK "NOT NULL"
+        TEXT informacion
+        TIMESTAMP fecha_creacion
+    }
+    
+    asistencia {
+        SERIAL id_asistencia PK
+        INTEGER id_usuario FK "NOT NULL"
+        INTEGER id_sala FK "NOT NULL"
+        TIMESTAMP fecha_hora "NOT NULL"
+    }
+    
+    %% ============================================
+    %% CHAT CON IA
+    %% ============================================
+    
+    conversacion_ia {
+        SERIAL id_conversacion PK
+        INTEGER id_sala FK "NOT NULL"
+        VARCHAR_500 titulo
+        JSONB contexto_inicial
+        TIMESTAMP fecha_creacion
+        TIMESTAMP fecha_ultima_actualizacion
+        BOOLEAN activa
+    }
+    
+    mensaje_chat_ia {
+        SERIAL id_mensaje PK
+        INTEGER id_conversacion FK "NOT NULL"
+        INTEGER id_usuario FK
+        VARCHAR_20 tipo_mensaje "usuario|ia|sistema"
+        TEXT contenido "NOT NULL"
+        JSONB metadata
+        BOOLEAN tiene_attachments
+        JSONB metadata_multimodal
+        TIMESTAMP fecha_envio
+    }
+    
+    snapshot_diagrama {
+        SERIAL id_snapshot PK
+        INTEGER id_conversacion FK "NOT NULL"
+        INTEGER id_mensaje FK
+        JSONB diagrama_json "NOT NULL"
+        TEXT descripcion
+        TIMESTAMP fecha_creacion
+    }
+    
+    config_ia {
+        SERIAL id_config PK
+        INTEGER id_sala FK "UNIQUE, NOT NULL"
+        VARCHAR_100 modelo "claude-sonnet-4.5"
+        DECIMAL_3_2 temperatura "0.2"
+        INTEGER max_tokens "16000"
+        TEXT system_prompt
+        JSONB configuracion_extra
+        TIMESTAMP fecha_creacion
+    }
+    
+    %% ============================================
+    %% MULTIMODAL
+    %% ============================================
+    
+    mensaje_attachment {
+        SERIAL id PK
+        INTEGER mensaje_id FK "NOT NULL"
+        VARCHAR_20 tipo "audio|imagen"
+        VARCHAR_500 archivo_url "NOT NULL"
+        VARCHAR_255 archivo_nombre "NOT NULL"
+        INTEGER archivo_tamano
+        VARCHAR_100 mime_type
+        TEXT transcripcion "solo audio"
+        DECIMAL_10_2 duracion_segundos "solo audio"
+        VARCHAR_50 servicio_transcripcion "solo audio"
+        INTEGER ancho "solo imagen"
+        INTEGER alto "solo imagen"
+        JSONB analisis_ia "solo imagen"
+        TIMESTAMP created_at
+    }
+    
+    %% ============================================
+    %% RELACIONES
+    %% ============================================
+    
+    %% Relaciones de Usuario y Sala
+    usuario ||--o{ sala : "host_sala"
+    usuario ||--o{ asistencia : "participa"
+    sala ||--o{ asistencia : "tiene"
+    
+    %% Relaciones de Conversación IA
+    sala ||--o{ conversacion_ia : "contiene"
+    conversacion_ia ||--o{ mensaje_chat_ia : "tiene"
+    usuario ||--o{ mensaje_chat_ia : "envia"
+    
+    %% Relaciones de Snapshot y Config
+    conversacion_ia ||--o{ snapshot_diagrama : "captura"
+    mensaje_chat_ia ||--o{ snapshot_diagrama : "asociado"
+    sala ||--o| config_ia : "configura"
+    
+    %% Relaciones Multimodales
+    mensaje_chat_ia ||--o{ mensaje_attachment : "adjunta"
+        </div>
+
+        <div class="legend">
+            <h3>📋 Descripción del Sistema</h3>
+            <ul>
+                <li><strong>usuario:</strong> Usuarios registrados en el sistema</li>
+                <li><strong>sala:</strong> Espacios de trabajo colaborativos para diagramas UML</li>
+                <li><strong>asistencia:</strong> Registro de participación de usuarios en salas</li>
+                <li><strong>conversacion_ia:</strong> Conversaciones con IA (Claude) vinculadas a salas</li>
+                <li><strong>mensaje_chat_ia:</strong> Mensajes del chat (usuario, IA o sistema)</li>
+                <li><strong>snapshot_diagrama:</strong> Instantáneas del estado del diagrama en formato JSON</li>
+                <li><strong>config_ia:</strong> Configuración personalizada de la IA por sala (modelo, temperatura, tokens)</li>
+                <li><strong>mensaje_attachment:</strong> Archivos adjuntos multimodales (audio con transcripción e imágenes con análisis IA)</li>
+            </ul>
+            
+            <h3>🎯 Características Principales</h3>
+            <ul>
+                <li><strong>Multimodal:</strong> Soporte para audio (con transcripción automática) e imágenes (con análisis IA)</li>
+                <li><strong>IA Integrada:</strong> Claude Sonnet 4.5 para análisis de diagramas UML</li>
+                <li><strong>Versionado:</strong> Snapshots de diagramas vinculados a mensajes</li>
+                <li><strong>Colaborativo:</strong> Múltiples usuarios en salas con control de asistencia</li>
+                <li><strong>Configurable:</strong> Parámetros de IA personalizables por sala</li>
+            </ul>
+
+            <h3>🔑 Convenciones</h3>
+            <ul>
+                <li><strong>PK:</strong> Primary Key (Clave Primaria)</li>
+                <li><strong>FK:</strong> Foreign Key (Clave Foránea)</li>
+                <li><strong>UK:</strong> Unique Key (Clave Única)</li>
+                <li><strong>JSONB:</strong> Datos JSON binarios optimizados para PostgreSQL</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            themeVariables: {
+                primaryColor: '#4CAF50',
+                primaryTextColor: '#fff',
+                primaryBorderColor: '#388E3C',
+                lineColor: '#666',
+                secondaryColor: '#2196F3',
+                tertiaryColor: '#FFC107'
+            }
+        });
+    </script>
+</body>
+</html>

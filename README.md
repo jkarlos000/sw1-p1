@@ -6,6 +6,8 @@ Sistema de diagramación UML en tiempo real con chat de IA integrado para análi
 
 - 🎨 **Editor UML colaborativo** - Múltiples usuarios en tiempo real
 - 🤖 **IA integrada** - Claude Sonnet 4.5 analiza y modifica diagramas
+- 🎤 **Chat multimodal** - Texto, audio y imágenes
+- 📸 **Análisis visual** - Convierte diagramas en papel a digital
 - 🔄 **Sincronización WebSocket** - Cambios instantáneos
 - 💾 **Persistencia automática** - PostgreSQL
 - 🚀 **Generación de código** - Spring Boot, Postman
@@ -56,6 +58,22 @@ DB_PASSWORD=your_password
 # IA (Claude recomendado)
 ANTHROPIC_API_KEY=sk-ant-xxxxx
 MODELO_IA=claude-sonnet-4.5
+
+# Transcripción de Audio (opcional - elige uno)
+# Prioridad: TRANSCRIPTION_PROVIDER > OpenAI > AssemblyAI > Deepgram > Google > Whisper Local
+TRANSCRIPTION_PROVIDER=assemblyai  # o 'openai', 'deepgram', 'google', 'whisper-local'
+
+# OpenAI (Whisper + GPT)
+OPENAI_API_KEY=sk-xxxxx
+
+# AssemblyAI (Recomendado - $0.015/min, español excelente)
+ASSEMBLYAI_API_KEY=xxxxx
+
+# Deepgram (Muy rápido - $0.0043/min)
+DEEPGRAM_API_KEY=xxxxx
+
+# Google Cloud Speech-to-Text (60min gratis/mes)
+GOOGLE_CLOUD_KEY_PATH=/path/to/service-account.json
 ```
 
 ## 🏗️ Arquitectura
@@ -123,6 +141,43 @@ jk/
    - Proyectos Spring Boot
    - Documentación
 
+4. **Entrada Multimodal** 🆕
+   - **Texto**: Instrucciones escritas
+   - **Audio**: Grabación o archivo de audio (transcripción automática)
+   - **Imágenes**: Fotos de diagramas en papel, bocetos, referencias visuales
+
+### Casos de Uso Multimodal
+
+#### 📸 Foto → Diagrama Digital
+```
+Usuario: "Convierte este diagrama que dibujé en papel"
+[Adjunta foto del cuaderno]
+
+→ Claude Vision analiza la imagen
+→ Extrae clases, atributos, relaciones
+→ Genera acciones de creación
+→ Diagrama aparece automáticamente en el editor
+```
+
+#### 🎤 Audio + Imagen
+```
+Usuario: [Grabación] "Agrega los métodos que faltan en Usuario 
+         y conéctalo con Pedido como muestro aquí"
+[Adjunta boceto con flechas]
+
+→ Whisper/AssemblyAI transcribe el audio
+→ Claude Vision analiza la imagen
+→ Combina ambos contextos
+→ Aplica modificaciones precisas
+```
+
+#### 📝 Múltiples Archivos
+```
+- Hasta 5 audios simultáneos
+- Hasta 10 imágenes simultáneas
+- Combinación libre de texto + audio + imágenes
+```
+
 ### Configuración IA
 
 **Obtener API Key:**
@@ -130,10 +185,29 @@ jk/
 - GPT: [platform.openai.com](https://platform.openai.com)
 
 **Modelos disponibles:**
-- `claude-sonnet-4.5` ⭐ Recomendado
-- `claude-opus-4`
-- `gpt-4`
-- `gpt-3.5-turbo`
+- `claude-sonnet-4.5` ⭐ Recomendado (incluye Vision)
+- `claude-opus-4` (más potente, más caro)
+- `gpt-4` (alternativa OpenAI)
+- `gpt-3.5-turbo` (más económico)
+
+**Servicios de Transcripción:**
+
+| Servicio | Calidad | Precio/min | Velocidad | Recomendado |
+|----------|---------|------------|-----------|-------------|
+| **AssemblyAI** | ⭐⭐⭐⭐⭐ | $0.015 | Rápida | ✅ **Sí** |
+| OpenAI Whisper | ⭐⭐⭐⭐ | $0.006 | Media | ✅ Muy bueno |
+| Deepgram | ⭐⭐⭐⭐ | $0.0043 | Muy rápida | ✅ Bueno |
+| Google Cloud | ⭐⭐⭐⭐ | Gratis 60min | Media | ✅ Gratis |
+| Whisper Local | ⭐⭐⭐ | Gratis | Lenta | 💻 Sin internet |
+
+**Configuración en .env:**
+```env
+# Elige tu servicio preferido
+TRANSCRIPTION_PROVIDER=assemblyai
+
+# O deja que elija automáticamente según las API keys disponibles
+# Orden de prioridad: OpenAI > AssemblyAI > Deepgram > Google > Local
+```
 
 ## 📡 API Reference
 
@@ -143,8 +217,24 @@ jk/
 POST   /users/confirm-login              # Login
 POST   /users                            # Registro
 GET    /chat-ia/conversacion/sala/:id   # Conversación activa
-POST   /chat-ia/mensaje                 # Mensaje + IA
+POST   /chat-ia/mensaje                 # Mensaje + IA (texto)
+POST   /chat-ia/mensaje-multimodal      # Mensaje + IA (multimodal) 🆕
 POST   /chat-ia/generar-postman         # Generar colección
+GET    /chat-ia/mensaje/:id/attachments # Obtener attachments 🆕
+GET    /chat-ia/attachment/:id/download # Descargar archivo 🆕
+```
+
+### Ejemplo Multimodal (cURL)
+
+```bash
+curl -X POST http://localhost:3000/chat-ia/mensaje-multimodal \
+  -F "id_sala=1" \
+  -F "id_usuario=1" \
+  -F "contenido=Convierte este diagrama a digital" \
+  -F "diagrama_actual={\"cells\":[]}" \
+  -F "audios=@grabacion.webm" \
+  -F "imagenes=@diagrama_papel.jpg" \
+  -F "imagenes=@boceto.png"
 ```
 
 ### WebSocket Events
@@ -161,12 +251,22 @@ modificacion-diagrama-ia      # Modificaciones IA
 
 ### Tablas
 
+**Core:**
 - `usuario` - Usuarios del sistema
 - `sala` - Salas de colaboración
 - `mensaje_general` - Chat general
-- `conversacion_ia` - Conversaciones con IA
-- `mensaje_chat_ia` - Mensajes del chat
-- `config_ia` - Configuración por sala
+
+**Chat con IA:**
+- `conversacion_ia` - Conversaciones por sala
+- `mensaje_chat_ia` - Mensajes (usuario ↔ IA)
+- `mensaje_attachment` 🆕 - Archivos adjuntos (audio/imágenes)
+- `snapshot_diagrama` - Versiones del diagrama
+- `config_ia` - Configuración de IA por sala
+
+**Schemas:**
+- `backend-p1sw1/database/schema.sql` - Esquema principal
+- `backend-p1sw1/database/chat-ia-schema.sql` - Chat IA
+- `backend-p1sw1/database/multimodal-schema.sql` 🆕 - Attachments
 
 ### Setup
 
@@ -174,6 +274,7 @@ modificacion-diagrama-ia      # Modificaciones IA
 # Ejecutar schemas (en orden)
 docker exec -i postgres_container psql -U postgres -d parcial1sw1 < backend-p1sw1/database/schema.sql
 docker exec -i postgres_container psql -U postgres -d parcial1sw1 < backend-p1sw1/database/chat-ia-schema.sql
+docker exec -i postgres_container psql -U postgres -d parcial1sw1 < backend-p1sw1/database/multimodal-schema.sql
 
 # Datos de prueba (opcional)
 docker exec -i postgres_container psql -U postgres -d parcial1sw1 < backend-p1sw1/database/seed.sql
@@ -224,14 +325,92 @@ docker-compose restart
 - Revisar límites de rate
 - Comprobar logs del backend
 
+**Transcripción de audio falla:**
+```bash
+# Verificar API keys
+echo $ASSEMBLYAI_API_KEY  # o la que uses
+
+# Revisar logs del backend
+# Buscar: "🎤 Transcribiendo con [servicio]"
+
+# Si usas Whisper local, instalarlo:
+pip install openai-whisper
+# O whisper.cpp para mejor rendimiento
+```
+
+**Imágenes no se analizan:**
+- Claude Sonnet 4.5 requiere ANTHROPIC_API_KEY
+- Verificar que las imágenes sean JPG/PNG válidas
+- Tamaño máximo: 50MB por archivo
+- Comprobar logs: "📷 Imagen cargada"
+
 ## 📚 Documentación Adicional
 
 - [Backend README](backend-p1sw1/README.md)
 - [Frontend README](official-sw1p1/README.md)
+- [Instalación Multimodal](INSTALACION_MULTIMODAL.md) 🆕
+- [Guía de Uso Multimodal](GUIA_USO_MULTIMODAL.md) 🆕
+- [Resumen de Implementación](RESUMEN_IMPLEMENTACION.md) 🆕
+- [Ejemplo de Integración](EJEMPLO_INTEGRACION.ts) 🆕
+
+## 🚀 Setup Rápido Multimodal
+
+**Windows (PowerShell):**
+```powershell
+.\setup-multimodal.ps1
+```
+
+**Linux/Mac:**
+```bash
+chmod +x setup-multimodal.sh
+./setup-multimodal.sh
+```
+
+O manualmente:
+```bash
+# 1. Instalar dependencias backend
+cd backend-p1sw1
+npm install multer @types/multer form-data axios
+
+# 2. Aplicar schema de BD
+docker exec -i postgres_container psql -U postgres -d parcial1sw1 < database/multimodal-schema.sql
+
+# 3. Configurar API keys en .env
+nano .env  # Agregar ASSEMBLYAI_API_KEY o OPENAI_API_KEY
+
+# 4. Iniciar servicios
+npm start  # Backend
+cd ../official-sw1p1 && npm start  # Frontend
+```
 
 ## 🤝 Contribuir
 
 Proyecto desarrollado para fines académicos.
+
+## 🌟 Características Destacadas
+
+### Chat Multimodal 🆕
+```
+📝 Texto: "Agrega una clase Usuario"
+🎤 Audio: [Grabación de voz con instrucciones]
+📸 Imagen: Foto de diagrama en papel
+→ IA procesa todo y genera el diagrama automáticamente
+```
+
+### Transcripción Inteligente
+- 5 servicios intercambiables (AssemblyAI, Whisper, Deepgram, Google, Local)
+- Detección automática de API keys disponibles
+- Fallback a modo gratuito (Whisper local)
+
+### Análisis Visual
+- Claude Vision extrae estructura de diagramas dibujados a mano
+- Reconoce clases, atributos, métodos, relaciones
+- OCR automático para texto manuscrito
+
+### Sincronización en Tiempo Real
+- Modificaciones visibles para todos los usuarios
+- WebSockets para comunicación instantánea
+- Estado del chat compartido
 
 ---
 

@@ -11,6 +11,12 @@ export interface Mensaje {
   tipo_mensaje: 'usuario' | 'ia' | 'sistema';
   contenido: string;
   metadata?: any;
+  tiene_attachments?: boolean;
+  metadata_multimodal?: {
+    num_audios?: number;
+    num_imagenes?: number;
+    transcripciones_ok?: number;
+  };
   fecha_envio: Date;
   usuario_email?: string;
   temporal?: boolean;
@@ -133,6 +139,54 @@ export class ChatIaService {
       contenido: contenido,
       diagrama_actual: diagramaActual
     });
+  }
+
+  /**
+   * Enviar mensaje multimodal (texto + audios + imágenes)
+   */
+  enviarMensajeMultimodal(
+    idConversacion: number,
+    idSala: number,
+    idUsuario: number,
+    contenido: string,
+    diagramaActual: any,
+    audios: File[],
+    imagenes: File[]
+  ): Observable<any> {
+    const formData = new FormData();
+    
+    // Datos básicos
+    if (idConversacion) formData.append('id_conversacion', idConversacion.toString());
+    formData.append('id_sala', idSala.toString());
+    formData.append('id_usuario', idUsuario.toString());
+    if (contenido) formData.append('contenido', contenido);
+    if (diagramaActual) formData.append('diagrama_actual', JSON.stringify(diagramaActual));
+    
+    // Archivos de audio
+    audios.forEach(audio => {
+      formData.append('audios', audio, audio.name);
+    });
+    
+    // Archivos de imagen
+    imagenes.forEach(imagen => {
+      formData.append('imagenes', imagen, imagen.name);
+    });
+    
+    return this.http.post(`${this.baseUrl}/chat-ia/mensaje-multimodal`, formData);
+  }
+
+  /**
+   * Obtener attachments de un mensaje
+   */
+  obtenerAttachments(idMensaje: number): Observable<any> {
+    return this.http.get(`${this.baseUrl}/chat-ia/mensaje/${idMensaje}/attachments`);
+  }
+
+  /**
+   * Obtener URL de descarga de attachment
+   */
+  getAttachmentDownloadUrl(attachmentId: number): string {
+    return `${this.baseUrl}/chat-ia/attachment/${attachmentId}/download`;
   }
 
   /**

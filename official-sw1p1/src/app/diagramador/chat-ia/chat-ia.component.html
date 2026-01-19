@@ -75,6 +75,23 @@
               </span>
               <span class="mensaje-fecha">{{ formatearFecha(mensaje.fecha_envio) }}</span>
             </div>
+            
+            <!-- Indicador de attachments multimodales -->
+            <div class="mensaje-attachments" *ngIf="mensaje.tiene_attachments && mensaje.metadata_multimodal">
+              <div class="attachment-badge" *ngIf="mensaje.metadata_multimodal && mensaje.metadata_multimodal.num_audios && mensaje.metadata_multimodal.num_audios > 0">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 18.75a6 6 0 006-6v-1.5m-6 7.5a6 6 0 01-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 01-3-3V4.5a3 3 0 116 0v8.25a3 3 0 01-3 3z" />
+                </svg>
+                <span>{{ mensaje.metadata_multimodal.num_audios }} audio(s)</span>
+              </div>
+              <div class="attachment-badge" *ngIf="mensaje.metadata_multimodal && mensaje.metadata_multimodal.num_imagenes && mensaje.metadata_multimodal.num_imagenes > 0">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                </svg>
+                <span>{{ mensaje.metadata_multimodal.num_imagenes }} imagen(es)</span>
+              </div>
+            </div>
+            
             <div class="mensaje-texto" [innerHTML]="mensaje.contenido"></div>
           </div>
         </div>
@@ -103,25 +120,33 @@
     </div>
 
     <!-- Input de mensaje -->
-    <div class="chat-input-container">
-      <textarea
-        [(ngModel)]="mensajeInput"
-        (input)="onInputChange()"
-        (keypress)="onKeyPress($event)"
-        placeholder="Escribe tu mensaje... (Shift + Enter para nueva línea)"
-        class="chat-input"
-        rows="1"
-      ></textarea>
-      <button 
-        class="chat-send-btn" 
-        (click)="enviarMensaje()"
-        [disabled]="!mensajeInput().trim() || !conversacionActual()"
-        [title]="mensajeInput().trim() ? 'Enviar mensaje' : 'Escribe un mensaje'"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
-        </svg>
-      </button>
+    <div class="chat-input-wrapper">
+      <!-- Componente de attachments multimodales (arriba) -->
+      <app-chat-attachments 
+        (attachmentsChange)="onAttachmentsChange($event)"
+      ></app-chat-attachments>
+
+      <!-- Input container (abajo) -->
+      <div class="chat-input-container">
+        <textarea
+          [(ngModel)]="mensajeInput"
+          (input)="onInputChange()"
+          (keypress)="onKeyPress($event)"
+          placeholder="Escribe tu mensaje... (Shift + Enter para nueva línea)"
+          class="chat-input"
+          rows="1"
+        ></textarea>
+        <button 
+          class="chat-send-btn" 
+          (click)="enviarMensaje()"
+          [disabled]="(!mensajeInput().trim() && attachments().audios.length === 0 && attachments().imagenes.length === 0) || !conversacionActual()"
+          [title]="mensajeInput().trim() || attachments().audios.length > 0 || attachments().imagenes.length > 0 ? 'Enviar mensaje' : 'Escribe un mensaje o agrega archivos'"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 12L3.269 3.126A59.768 59.768 0 0121.485 12 59.77 59.77 0 013.27 20.876L5.999 12zm0 0h7.5" />
+          </svg>
+        </button>
+      </div>
     </div>
   </div>
 </div>

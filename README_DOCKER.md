@@ -23,9 +23,20 @@ nano .env
 
 **Variables principales:**
 ```env
+# Base de datos
 POSTGRES_PASSWORD=tu_password_seguro
-ANTHROPIC_API_KEY=sk-ant-xxxxx  # Opcional
+
+# IA (Claude para análisis de diagramas)
+ANTHROPIC_API_KEY=sk-ant-xxxxx  # Requerido para IA
+MODELO_IA=claude-sonnet-4.5
+
+# Transcripción Multimodal (opcional)
+TRANSCRIPTION_PROVIDER=assemblyai
+ASSEMBLYAI_API_KEY=your_key  # Para audio
+
+# URLs
 BACKEND_URL=http://backend:3000
+CORS_ORIGIN=http://localhost
 ```
 
 ### 2. Iniciar Todo el Stack
@@ -141,8 +152,7 @@ cat backup_20260115.sql | docker-compose exec -T postgres psql -U postgres -d pa
 
 # Re-ejecutar schemas manualmente (si es necesario)
 docker-compose exec postgres psql -U postgres -d parcial1sw1 -f /docker-entrypoint-initdb.d/01-schema.sql
-docker-compose exec postgres psql -U postgres -d parcial1sw1 -f /docker-entrypoint-initdb.d/02-chat-ia-schema.sql
-docker-compose exec postgres psql -U postgres -d parcial1sw1 -f /docker-entrypoint-initdb.d/03-seed.sql
+docker-compose exec postgres psql -U postgres -d parcial1sw1 -f /docker-entrypoint-initdb.d/02-seed.sql
 
 # Limpiar datos
 docker-compose exec postgres psql -U postgres -d parcial1sw1 -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public;"
@@ -279,6 +289,65 @@ docker-compose exec postgres pg_dump -U postgres parcial1sw1 > backups/db_$(date
 docker-compose logs -f --tail=100
 ```
 
+## 🎙️ Funcionalidades Multimodales
+
+El sistema soporta análisis de audio e imágenes para el chat de IA.
+
+### Configuración de Transcripción
+
+```bash
+# En .env - Configurar proveedor de transcripción
+TRANSCRIPTION_PROVIDER=assemblyai  # assemblyai, openai, deepgram, google, local
+
+# AssemblyAI (recomendado - $0.015/min)
+ASSEMBLYAI_API_KEY=your_key_here
+
+# OpenAI Whisper ($0.006/min)
+OPENAI_API_KEY=sk-xxx
+
+# Deepgram ($0.0043/min)
+DEEPGRAM_API_KEY=your_key
+
+# Google Cloud Speech (60min gratis/mes)
+GOOGLE_APPLICATION_CREDENTIALS=/path/to/credentials.json
+```
+
+### Verificar Multimodal
+
+```bash
+# Ver configuración de transcripción
+docker-compose exec backend env | grep TRANSCRIPTION
+
+# Probar endpoint multimodal
+curl -X POST http://localhost:3000/api/chat-ia/mensaje-multimodal \
+  -H "Content-Type: multipart/form-data" \
+  -F "salaId=1" \
+  -F "texto=Analiza este diagrama" \
+  -F "imagenes=@diagrama.jpg"
+
+# Ver archivos subidos
+docker-compose exec backend ls -lh /app/uploads/
+
+# Ver attachments en BD
+docker-compose exec postgres psql -U postgres -d parcial1sw1 \
+  -c "SELECT tipo, archivo_nombre, archivo_tamano FROM mensaje_attachment;"
+```
+
+### Volúmenes Persistentes
+
+```bash
+# Ver volúmenes
+docker volume ls | grep sw1
+
+# Backup de uploads
+docker run --rm -v sw1-backend-uploads:/uploads -v $(pwd):/backup \
+  alpine tar czf /backup/uploads_backup.tar.gz -C /uploads .
+
+# Restaurar uploads
+docker run --rm -v sw1-backend-uploads:/uploads -v $(pwd):/backup \
+  alpine tar xzf /backup/uploads_backup.tar.gz -C /uploads
+```
+
 ## 📚 Recursos Adicionales
 
 ### Archivos de Configuración
@@ -288,6 +357,9 @@ docker-compose logs -f --tail=100
 - **backend-p1sw1/Dockerfile** - Imagen del backend
 - **official-sw1p1/Dockerfile** - Imagen del frontend
 - **nginx/nginx.conf** - Configuración Nginx proxy
+- **backend-p1sw1/database/schema-completo.sql** - Schema BD unificado
+- **backend-p1sw1/database/seed-completo.sql** - Datos de prueba
+- **backend-p1sw1/database/drop-tables.sql** - Limpieza de BD
 
 ### Documentación
 
@@ -322,8 +394,9 @@ docker-compose logs -f --tail=100
 │   ├── Dockerfile              # Imagen del backend
 │   ├── .dockerignore           # Archivos ignorados
 │   └── database/
-│       ├── schema.sql          # Estructura de BD (auto-ejecutado)
-│       └── seed.sql            # Datos iniciales (auto-ejecutado)
+│       ├── schema-completo.sql # Estructura completa de BD (auto-ejecutado)
+│       ├── seed-completo.sql   # Datos iniciales + ejemplos (auto-ejecutado)
+│       └── drop-tables.sql     # Script de limpieza
 └── official-sw1p1/
     ├── Dockerfile              # Imagen del frontend
     ├── nginx.conf              # Configuración de Nginx

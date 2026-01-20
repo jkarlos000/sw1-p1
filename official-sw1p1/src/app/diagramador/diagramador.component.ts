@@ -86,8 +86,9 @@ export default class DiagramadorComponent
       this.configService
     );
     
-    // Asignar callback para limpiar diagrama y sincronizar
+    // Asignar callbacks para sincronización con otros usuarios
     this.rappid.onClearDiagram = () => this.limpiarDiagrama();
+    this.rappid.onImportDiagram = () => this.sincronizarDiagramaImportado();
     
     this.rappid.startRappid();
     
@@ -382,6 +383,16 @@ export default class DiagramadorComponent
       // Emitir cambio para sincronizar con otros usuarios (el graph ya fue limpiado)
       this.diagramadorService.emitChangedDiagrama(JSON.stringify(this.rappid.graph.toJSON()));
       console.log('✅ Diagrama limpiado y sincronizado');
+    }
+  }
+
+  sincronizarDiagramaImportado(): void {
+    if (this.rappid && this.rappid.graph) {
+      console.log('📥 Sincronizando diagrama importado desde XML...');
+      
+      // Emitir cambio para sincronizar con otros usuarios (el graph ya fue actualizado)
+      this.diagramadorService.emitChangedDiagrama(JSON.stringify(this.rappid.graph.toJSON()));
+      console.log('✅ Diagrama importado y sincronizado con todos los usuarios');
     }
   }
 

@@ -27,6 +27,7 @@ import { v4 as uuidv4 } from 'uuid';
 import {
   AuthService,
   SalaDiagrama,
+  SalaUsuario,
   StatusAuth,
   UserAuth,
 } from './auth.service';
@@ -52,6 +53,8 @@ export default class AuthComponent implements OnInit, OnDestroy, AfterViewInit {
   public viewFormAuth = signal<boolean>(false);
   public infoDate = signal<Date>(new Date());
   public viewFormLogin = signal<boolean>(false);
+  public salasUsuario = signal<SalaUsuario[]>([]);
+  public cargandoSalas = signal<boolean>(false);
   // READ : INPUT CODIGO SALA
   public inputCodigoSala: string = '';
   // READ : PROPIEDADES DEL MODAL
@@ -79,6 +82,8 @@ export default class AuthComponent implements OnInit, OnDestroy, AfterViewInit {
     if (userAuth) {
       this.serviceAuth.setUserAuth(JSON.parse(userAuth));
       this.serviceAuth.setStatusClient(StatusAuth.Autenticado);
+      // Cargar salas del usuario
+      this.cargarSalasUsuario();
     }
 
     // READ: EVENTOS DE ESCUCHA
@@ -167,6 +172,8 @@ export default class AuthComponent implements OnInit, OnDestroy, AfterViewInit {
           this.myFormLogin.reset();
           //LOGIC: GUARDAR INFORMACION DEL USER EN EL LOCALSTORAGE
           localStorage.setItem('userAuth', JSON.stringify(response));
+          // Cargar salas del usuario
+          this.cargarSalasUsuario();
         },
         (dataError) => {
           console.log(dataError);
@@ -200,6 +207,8 @@ export default class AuthComponent implements OnInit, OnDestroy, AfterViewInit {
           this.myFormRegister.reset();
           //LOGIC: GUARDAR INFORMACION DEL USER EN EL LOCALSTORAGE
           localStorage.setItem('userAuth', JSON.stringify(response));
+          // Cargar salas del usuario
+          this.cargarSalasUsuario();
         },
         (dataError) => {
           console.log(dataError);
@@ -221,6 +230,77 @@ export default class AuthComponent implements OnInit, OnDestroy, AfterViewInit {
     this.serviceAuth.cerrarSesion();
     //LOGIC : ELIMINAR INFORMACION USER DEL LOCALSTORAGE
     localStorage.removeItem('userAuth');
+    // Limpiar salas
+    this.salasUsuario.set([]);
+  }
+
+  cargarSalasUsuario(): void {
+    const userAuth = this.serviceAuth.getUserAuth();
+    console.log('🔍 cargarSalasUsuario - userAuth:', userAuth);
+    if (!userAuth) {
+      console.log('❌ No hay usuario autenticado');
+      return;
+    }
+    
+    console.log('📡 Solicitando salas para:', userAuth.email);
+    this.cargandoSalas.set(true);
+    this.serviceAuth.obtenerSalasUsuario(userAuth.email).subscribe({
+      next: (salas) => {
+        console.log('✅ Salas recibidas:', salas);
+        this.salasUsuario.set(salas);
+        this.cargandoSalas.set(false);
+      },
+      error: (error) => {
+        console.error('❌ Error al cargar salas:', error);
+        this.cargandoSalas.set(false);
+      }
+    });
+  }
+
+  unirseSala(codigoSala: string): void {
+    if (!this.isAuthenticado()) return;
+    this.serviceAuth.emitUnirseReunion(
+      this.serviceAuth.getUserAuth()!.id,
+      codigoSala
+    );
+  }
+
+  eliminarSala(sala: SalaUsuario): void {
+    if (!this.isAuthenticado()) return;
+    
+    const userAuth = this.serviceAuth.getUserAuth();
+    if (!userAuth) return;
+    
+    // Verificar que sea el host
+    if (!sala.esHost) {
+      this.messageModalCustom.set('Solo el host puede eliminar la sala');
+      this.modalCustomView.set(true);
+      return;
+    }
+    
+    // Confirmar eliminación
+    const confirmacion = confirm(
+      `¿Estás seguro de que deseas eliminar la sala "${sala.codigo}"?\n\nEsta acción no se puede deshacer.`
+    );
+    
+    if (!confirmacion) return;
+    
+    this.cargandoSalas.set(true);
+    this.serviceAuth.eliminarSala(sala.id, userAuth.email).subscribe({
+      next: (response) => {
+        console.log('✅ Sala eliminada correctamente');
+        // Recargar la lista de salas
+        this.cargarSalasUsuario();
+      },
+      error: (error) => {
+        console.error('❌ Error al eliminar sala:', error);
+        this.cargandoSalas.set(false);
+        this.messageModalCustom.set(
+          error.error?.mensaje || 'Error al eliminar la sala'
+        );
+        this.modalCustomView.set(true);
+      }
+    });
   }
 
   newReunion(): void {

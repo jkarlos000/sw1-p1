@@ -1984,6 +1984,11 @@ IMPORTANTE:
                 modifyTextFields(json);
 
                 this.graph.fromJSON(json);
+                
+                // Sincronizar con otros usuarios y guardar en BD
+                if (this.onImportDiagram) {
+                  this.onImportDiagram();
+                }
               } catch (error) {
                 console.error('Error al leer el archivo JSON:', error);
               }

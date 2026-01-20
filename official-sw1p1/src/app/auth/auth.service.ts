@@ -17,6 +17,15 @@ export interface SalaDiagrama {
   host: string;
 }
 
+export interface SalaUsuario {
+  id: number;
+  codigo: string;
+  host: string;
+  esHost: boolean;
+  totalAsistentes: number;
+  fechaCreacion: string;
+}
+
 export enum StatusAuth {
   Autenticado,
   NoAutenticado,
@@ -134,5 +143,20 @@ export class AuthService {
       id: idUser,
       nombre: nameSala,
     });
+  }
+
+  obtenerSalasUsuario(email: string): Observable<SalaUsuario[]> {
+    return this.http
+      .get<{ ok: boolean; salas: SalaUsuario[] }>(`${this.apiUrl}/users/${email}/salas`)
+      .pipe(
+        map((response) => response.salas)
+      );
+  }
+
+  eliminarSala(idSala: number, email: string): Observable<{ ok: boolean; mensaje: string }> {
+    return this.http.delete<{ ok: boolean; mensaje: string }>(
+      `${this.apiUrl}/salas/${idSala}`,
+      { body: { email } }
+    );
   }
 }

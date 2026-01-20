@@ -2299,28 +2299,112 @@ IMPORTANTE:
           final;
 
         // Solicitar nombre del archivo al usuario
-        const nombreArchivo = prompt('Ingrese el nombre del archivo XML (sin extensión):', 'diagrama_uml');
+        const nombreArchivo = prompt('Ingrese el nombre del diagrama UML:', 'diagrama_uml');
         
         // Si el usuario cancela o no ingresa nombre, usar uno por defecto
-        const fileName = nombreArchivo && nombreArchivo.trim() !== '' 
-          ? `${nombreArchivo.trim()}.xml` 
-          : `diagrama_${uuidv4().slice(0, 6)}.xml`;
+        const nombreBase = nombreArchivo && nombreArchivo.trim() !== '' 
+          ? nombreArchivo.trim() 
+          : `diagrama_${uuidv4().slice(0, 6)}`;
 
-        // Crear un blob con el contenido XML
-        const blob = new Blob([cabezaXML], { type: 'application/xml' });
+        // Crear README con instrucciones
+        const readmeContent = [
+          `# ${nombreBase} - Diagrama UML 2.5`,
+          '',
+          'Este archivo XMI contiene un diagrama de clases UML 2.5 compatible con Enterprise Architect y otras herramientas de modelado.',
+          '',
+          '## Archivos Incluidos',
+          '',
+          `- \`${nombreBase}.xmi\` - Diagrama de clases en formato XMI 2.5`,
+          '- `README.md` - Este archivo de instrucciones',
+          '',
+          '## Cómo Abrir en Enterprise Architect',
+          '',
+          '### Opción 1: Importar XMI',
+          '1. Abre Enterprise Architect',
+          '2. Menu: **File → Import Model from XMI...**',
+          '3. Selecciona el archivo `' + nombreBase + '.xmi`',
+          '4. Elige el paquete destino o crea uno nuevo',
+          '5. Click en **Import**',
+          '',
+          '### Opción 2: Arrastrar y Soltar',
+          '1. Abre Enterprise Architect',
+          '2. En el **Project Browser**, selecciona el paquete donde quieres importar',
+          '3. Arrastra el archivo `' + nombreBase + '.xmi` al Project Browser',
+          '',
+          '## Cómo Abrir en la Aplicación Web',
+          '',
+          '1. Ve a la aplicación web: http://localhost:4200',
+          '2. Click en el botón **"Importar XML"** en la toolbar',
+          '3. Selecciona el archivo `' + nombreBase + '.xmi`',
+          '4. El diagrama se cargará automáticamente',
+          '',
+          '## Especificaciones Técnicas',
+          '',
+          '- **Formato**: XMI 2.5 (XML Metadata Interchange)',
+          '- **Versión UML**: 2.5.1',
+          '- **Compatibilidad**: Enterprise Architect 6.5+, Visual Paradigm, ArgoUML, StarUML',
+          '- **Encoding**: windows-1252',
+          '',
+          '## Estructura del Diagrama',
+          '',
+          '### Clases',
+          '- Cada clase tiene un ID único (XMI)',
+          '- Atributos con visibilidad UML 2.5 (+, -, #, ~)',
+          '- Métodos con parámetros y tipos de retorno',
+          '',
+          '### Relaciones',
+          '- **Asociación**: Relación estándar entre clases',
+          '- **Composición**: Agregación fuerte (diamante relleno)',
+          '- **Agregación**: Agregación débil (diamante vacío)',
+          '- **Herencia**: Generalización (flecha vacía)',
+          '- **Dependencia**: Relación de uso (flecha punteada)',
+          '',
+          '### Cardinalidad',
+          '- Se especifica en ambos extremos de las relaciones',
+          '- Formato: `0..1`, `1..1`, `0..*`, `1..*`, etc.',
+          '',
+          '## Notas Importantes',
+          '',
+          '- Las **clases intermedias** (relaciones N:M) se identifican con guión bajo en el nombre',
+          '- Las **coordenadas** de posición se preservan en el elemento `<diagram>`',
+          '- Los **colores** de las clases se mantienen en el atributo `color`',
+          '',
+          '## Solución de Problemas',
+          '',
+          '### "No se puede importar el archivo"',
+          '- Verifica que el archivo no esté corrupto',
+          '- Asegúrate de tener Enterprise Architect 6.5 o superior',
+          '- Intenta abrirlo con un editor de texto para validar el XML',
+          '',
+          '### "Las relaciones no se muestran correctamente"',
+          '- Verifica que todas las clases referenciadas existan',
+          '- Revisa que los IDs de origen y destino coincidan',
+          '',
+          '### "Los atributos aparecen vacíos"',
+          '- El formato original usa `name:type` separado por dos puntos',
+          '- Algunos editores pueden requerir formato diferente',
+          '',
+          '## Más Información',
+          '',
+          '- Documentación UML 2.5: https://www.omg.org/spec/UML/2.5.1',
+          '- XMI Specification: https://www.omg.org/spec/XMI/2.5.1',
+          '- Enterprise Architect: https://sparxsystems.com',
+          '',
+          '---',
+          `Generado el ${new Date().toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}`,
+        ].join('\n');
 
-        // Crear un enlace de descarga
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = fileName;
+        // Crear ZIP con XMI y README
+        const zip = new JSZip();
+        zip.file(`${nombreBase}.xmi`, cabezaXML);
+        zip.file('README.md', readmeContent);
 
-        // Simular un clic en el enlace para iniciar la descarga
-        link.click();
-
-        // Liberar el objeto URL
-        URL.revokeObjectURL(link.href);
-        
-        console.log('✅ Archivo XML exportado:', fileName);
+        // Generar y descargar ZIP
+        zip.generateAsync({ type: 'blob' }).then((content) => {
+          saveAs(content, `${nombreBase}-uml.zip`);
+          console.log('✅ Diagrama UML exportado:', `${nombreBase}-uml.zip`);
+          alert(`¡Diagrama exportado exitosamente!\n\nArchivo: ${nombreBase}-uml.zip\n\nContiene:\n- ${nombreBase}.xmi (diagrama UML 2.5)\n- README.md (instrucciones de uso)`);
+        });
       },
 
       'grid-size:change': this.paper.setGridSize.bind(this.paper),

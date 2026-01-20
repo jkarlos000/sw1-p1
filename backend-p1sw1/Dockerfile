@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Copiar solo lo necesario para producción
 COPY package*.json ./
-RUN npm install --production=false
+RUN npm install --production
 
 # Copiar código compilado (debe existir dist/ localmente)
 # IMPORTANTE: Ejecutar 'npm run build' localmente ANTES de docker build

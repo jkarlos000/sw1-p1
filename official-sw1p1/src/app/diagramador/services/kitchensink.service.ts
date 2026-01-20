@@ -572,82 +572,110 @@ class KitchenSinkService {
       'xmlExportar:pointerclick': () => {
         const entrada = document.createElement('input');
         entrada.type = 'file';
-        entrada.accept = '.xml';
-        entrada.onchange = (event: any) => {
+        entrada.accept = '.xml,.xmi,.zip';
+        entrada.onchange = async (event: any) => {
           const archivo = event.target.files[0];
           if (archivo) {
-            const lector = new FileReader();
-            lector.onload = (e) => {
-              try {
-                const xmlContent = e.target!.result as string;
+            try {
+              let xmlContent: string;
 
-                // Parsear el contenido del XML
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(
-                  xmlContent,
-                  'application/xml'
+              // Si es un ZIP, extraer el archivo XMI/XML
+              if (archivo.name.endsWith('.zip')) {
+                console.log('📦 Archivo ZIP detectado, extrayendo...');
+                const zip = new JSZip();
+                const zipContent = await zip.loadAsync(archivo);
+                
+                // Buscar archivo .xmi o .xml en el ZIP
+                const xmiFile = Object.keys(zipContent.files).find(name => 
+                  name.endsWith('.xmi') || name.endsWith('.xml')
                 );
-
-                // LOGIC : ACCEDER <element> con xmi:type="uml:Class"
-                // LOGIC : ACCEDER <element> aqui van los datos de coordenadas en el papel
-                const packagedElements = xmlDoc.getElementsByTagName('element');
-                let clasesJoint: Element[] = [];
-                let dataClasesJoint: Element[] = [];
-
-                for (let i = 0; i < packagedElements.length; i++) {
-                  const element = packagedElements[i];
-                  // Verificar si el atributo 'xmi:idref' existe
-                  if (element.hasAttribute('xmi:idref')) {
-                    clasesJoint.push(element);
-                  }
-                  // Verificar si el atributo 'geometry' existe
-                  if (element.hasAttribute('geometry')) {
-                    dataClasesJoint.push(element);
-                  }
+                
+                if (!xmiFile) {
+                  alert('No se encontró ningún archivo XMI o XML en el ZIP');
+                  return;
                 }
+                
+                console.log('📄 Archivo encontrado:', xmiFile);
+                xmlContent = await zipContent.files[xmiFile].async('string');
+              } else {
+                // Leer archivo XMI/XML directamente
+                const lector = new FileReader();
+                xmlContent = await new Promise<string>((resolve, reject) => {
+                  lector.onload = (e) => resolve(e.target!.result as string);
+                  lector.onerror = reject;
+                  lector.readAsText(archivo);
+                });
+              }
 
-                function getGeometryValues(id: string): string[] {
-                  for (let i = 0; i < dataClasesJoint.length; i++) {
-                    const element = dataClasesJoint[i];
-                    const subject = element.getAttribute('subject');
+              // Parsear el contenido del XML
+              const parser = new DOMParser();
+              const xmlDoc = parser.parseFromString(
+                xmlContent,
+                'application/xml'
+              );
 
-                    if (subject == id) {
-                      const geometry = element.getAttribute('geometry');
-                      if (geometry) {
-                        // Extraer los valores numéricos de geometry
-                        const values = geometry.match(/\d+/g);
-                        if (values) {
-                          return values;
-                        }
+              console.log('✅ XML parseado correctamente');
+
+              // LOGIC : ACCEDER <element> con xmi:type="uml:Class"
+              // LOGIC : ACCEDER <element> aqui van los datos de coordenadas en el papel
+              const packagedElements = xmlDoc.getElementsByTagName('element');
+              let clasesJoint: Element[] = [];
+              let dataClasesJoint: Element[] = [];
+
+              for (let i = 0; i < packagedElements.length; i++) {
+                const element = packagedElements[i];
+                // Verificar si el atributo 'xmi:idref' existe
+                if (element.hasAttribute('xmi:idref')) {
+                  clasesJoint.push(element);
+                }
+                // Verificar si el atributo 'geometry' existe
+                if (element.hasAttribute('geometry')) {
+                  dataClasesJoint.push(element);
+                }
+              }
+
+              function getGeometryValues(id: string): string[] {
+                for (let i = 0; i < dataClasesJoint.length; i++) {
+                  const element = dataClasesJoint[i];
+                  const subject = element.getAttribute('subject');
+
+                  if (subject == id) {
+                    const geometry = element.getAttribute('geometry');
+                    if (geometry) {
+                      // Extraer los valores numéricos de geometry
+                      const values = geometry.match(/\d+/g);
+                      if (values) {
+                        return values;
                       }
                     }
                   }
-                  return ['0', '0'];
                 }
+                return ['100', '100']; // Posición por defecto si no se encuentra
+              }
 
-                // LOGIC : ACCEDER <connector>
-                const connectors = xmlDoc.getElementsByTagName('connector');
+              // LOGIC : ACCEDER <connector>
+              const connectors = xmlDoc.getElementsByTagName('connector');
 
-                let clasesJsonToJoint: string[] = [];
-                // READ : CREAR LAS Clases Normales e intermedias
-                clasesJoint.forEach((element, index) => {
-                  const id = element.getAttribute('xmi:idref');
-                  const nombre = element.getAttribute('name');
-                  let color = nombre?.includes('_') ? '#feb663' : '#31d0c6';
-                  let coordenadas: string[] = getGeometryValues(id!);
+              let clasesJsonToJoint: string[] = [];
+              // READ : CREAR LAS Clases Normales e intermedias
+              clasesJoint.forEach((element, index) => {
+                const id = element.getAttribute('xmi:idref');
+                const nombre = element.getAttribute('name');
+                let color = nombre?.includes('_') ? '#feb663' : '#31d0c6';
+                let coordenadas: string[] = getGeometryValues(id!);
 
-                  // LOGIC: Lista para almacenar los resultados
-                  let attributeList = '';
-                  const attributes = element.getElementsByTagName('attribute');
-                  for (let j = 0; j < attributes.length; j++) {
-                    const attribute = attributes[j];
-                    const name = attribute.getAttribute('name');
-                    const properties =
-                      attribute.getElementsByTagName('properties')[0];
-                    const type = properties
-                      ? properties.getAttribute('type')
-                      : '';
-                    if (name && type) {
+                // LOGIC: Lista para almacenar los resultados
+                let attributeList = '';
+                const attributes = element.getElementsByTagName('attribute');
+                for (let j = 0; j < attributes.length; j++) {
+                  const attribute = attributes[j];
+                  const name = attribute.getAttribute('name');
+                  const properties =
+                    attribute.getElementsByTagName('properties')[0];
+                  const type = properties
+                    ? properties.getAttribute('type')
+                    : '';
+                  if (name && type) {
                       attributeList += `-${name}:${type}\\n`;
                     }
                   }
@@ -929,13 +957,15 @@ ${
                     ]
                   }
                 `;
-                console.log(jsonJoint);
+                console.log('📋 Diagrama generado desde XML:', jsonJoint.substring(0, 200) + '...');
                 this.graph.fromJSON(JSON.parse(jsonJoint));
-              } catch (error) {
-                console.error('Error al leer el archivo XML:', error);
-              }
-            };
-            lector.readAsText(archivo);
+                console.log('✅ Diagrama cargado exitosamente');
+                alert(`¡Diagrama importado exitosamente!\n\n${clasesJoint.length} clases y ${connectors.length} relaciones cargadas.`);
+              
+            } catch (error) {
+              console.error('❌ Error al leer el archivo XML:', error);
+              alert('Error al importar el diagrama XML.\n\nVerifica que el archivo sea un XMI/XML válido.\n\nRevisa la consola para más detalles.');
+            }
           }
         };
         entrada.click();

@@ -116,7 +116,7 @@ export class ToolbarService {
           attrs: {
             button: {
               id: 'btn-export-xml',
-              'data-tooltip': '.xml',
+              'data-tooltip': 'Importar diagrama desde XMI/XML (ZIP compatible)',
               'data-tooltip-position': 'top',
               'data-tooltip-position-selector': '.toolbar-container',
             },
@@ -130,7 +130,7 @@ export class ToolbarService {
           attrs: {
             button: {
               id: 'btn-importar-xml',
-              'data-tooltip': '.xml',
+              'data-tooltip': 'Exportar diagrama a XMI 2.5 (Enterprise Architect)',
               'data-tooltip-position': 'top',
               'data-tooltip-position-selector': '.toolbar-container',
             },

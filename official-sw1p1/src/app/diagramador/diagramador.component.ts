@@ -449,9 +449,15 @@ export default class DiagramadorComponent
 
           case 'agregar':
             if (accion.elemento === 'clase') {
-              this.agregarClase(accion.nombre, accion.atributos || []);
+              this.agregarClase(accion.nombre, accion.atributos || [], accion.metodos || [], accion.posicion);
             } else if (accion.elemento === 'relacion') {
-              this.agregarRelacion(accion.origen, accion.destino, accion.cardinalidad || '1...*');
+              this.agregarRelacion(
+                accion.origen, 
+                accion.destino, 
+                accion.tipoRelacion || 'asociacion',
+                accion.cardinalidadOrigen || '1',
+                accion.cardinalidadDestino || '1'
+              );
             }
             break;
 
@@ -515,20 +521,35 @@ export default class DiagramadorComponent
     }
   }
 
-  private agregarClase(nombre: string, atributos: string[]): void {
-    console.log(`🎨 Agregando clase "${nombre}" con ${atributos.length} atributos`);
+  private agregarClase(nombre: string, atributos: string[], metodos: string[] = [], posicionCustom?: {x: number, y: number}): void {
+    console.log(`🎨 Agregando clase "${nombre}" con ${atributos.length} atributos y ${metodos.length} métodos`);
     
     try {
-      // Calcular posición en grid para evitar superposición
-      const posicion = this.calcularPosicionGrid();
-      console.log(`📍 Posición calculada para "${nombre}": (${posicion.x}, ${posicion.y})`);
+      // Usar posición personalizada o calcular en grid
+      const posicion = posicionCustom || this.calcularPosicionGrid();
+      console.log(`📍 Posición para "${nombre}": (${posicion.x}, ${posicion.y})`);
+      
+      // Combinar atributos y métodos con separador UML
+      let textoBody = '';
+      if (atributos.length > 0) {
+        textoBody += atributos.join('\n');
+      }
+      if (metodos.length > 0) {
+        if (atributos.length > 0) {
+          textoBody += '\n───────────────────────\n';
+        }
+        textoBody += metodos.join('\n');
+      }
+      
+      const alturaBase = 100;
+      const alturaTotal = Math.max(150, alturaBase + (atributos.length + metodos.length) * 15);
       
       // Crear una nueva clase usando el formato de objeto plano
       const nuevaClase = {
         id: this.generarUUID(),
         type: 'standard.HeaderedRectangle',
         position: posicion,
-        size: { width: 200, height: Math.max(150, 100 + atributos.length * 15) },
+        size: { width: 220, height: alturaTotal },
         attrs: {
           root: {
             dataTooltip: 'Clase',
@@ -559,7 +580,7 @@ export default class DiagramadorComponent
           },
           bodyText: {
             textWrap: {
-              text: atributos.join('\n'),
+              text: textoBody,
               width: -10,
               height: -40,
               ellipsis: true
@@ -581,8 +602,14 @@ export default class DiagramadorComponent
     }
   }
 
-  private agregarRelacion(origen: string, destino: string, cardinalidad: string): void {
-    console.log(`🔗 Agregando relación ${origen} → ${destino} (${cardinalidad})`);
+  private agregarRelacion(
+    origen: string, 
+    destino: string, 
+    tipoRelacion: string = 'asociacion',
+    cardinalidadOrigen: string = '1',
+    cardinalidadDestino: string = '1'
+  ): void {
+    console.log(`🔗 Agregando relación ${tipoRelacion}: ${origen} [${cardinalidadOrigen}] → [${cardinalidadDestino}] ${destino}`);
     
     try {
       const elementos = this.rappid.graph.getElements();
@@ -602,31 +629,112 @@ export default class DiagramadorComponent
         return;
       }
 
-      // Crear relación usando formato de objeto plano
+      // Determinar marcadores según el tipo de relación UML 2.5
+      let sourceMarker: any = { d: 'M 0 0 0 0' }; // Sin marcador por defecto
+      let targetMarker: any = { d: 'M 0 0 0 0' };
+      let strokeDasharray = '0';
+      let strokeColor = '#31d0c6';
+      
+      switch (tipoRelacion.toLowerCase()) {
+        case 'asociacion':
+          // Asociación con navegabilidad
+          sourceMarker = { d: 'M 0 0 0 0' };
+          targetMarker = { d: 'M 0 -10 15 0 0 10 z', fill: strokeColor };
+          break;
+          
+        case 'composicion':
+          // Composición (diamante negro en origen)
+          sourceMarker = { d: 'M -10 0 0 10 10 0 0 -10 z', fill: strokeColor };
+          targetMarker = { d: 'M 0 0 0 0' };
+          break;
+          
+        case 'agregacion':
+          // Agregación (diamante blanco en origen)
+          sourceMarker = { d: 'M 0 -10 15 0 0 10 z', fill: 'transparent', stroke: strokeColor };
+          targetMarker = { d: 'M 0 0 0 0' };
+          break;
+          
+        case 'herencia':
+        case 'generalizacion':
+          // Herencia (triángulo en destino)
+          sourceMarker = { d: 'M 0 0 0 0' };
+          targetMarker = { d: 'M 0 -10 -15 0 0 10 z', fill: '#FFFFFF', stroke: strokeColor };
+          break;
+          
+        case 'dependencia':
+          // Dependencia (línea punteada con flecha)
+          sourceMarker = { d: 'M 0 0 0 0' };
+          targetMarker = { d: 'M 0 -10 15 0 0 10 z', fill: strokeColor };
+          strokeDasharray = '5,5';
+          break;
+          
+        default:
+          console.warn(`Tipo de relación "${tipoRelacion}" no reconocido, usando asociación por defecto`);
+      }
+
+      // Crear relación usando standard.Link para compatibilidad con inspector
       const nuevaRelacion = {
         id: this.generarUUID(),
-        type: 'app.Link',
+        type: 'standard.Link',
         router: {
           name: 'normal'
         },
         connector: {
           name: 'rounded'
         },
-        labels: [{
-          attrs: {
-            text: {
-              text: cardinalidad,
-              fill: '#000000'
-            }
+        labels: [
+          {
+            attrs: {
+              text: {
+                text: cardinalidadOrigen,
+                fill: '#FFFFFF',
+                fontSize: 14,
+                fontWeight: 'bold'
+              },
+              rect: {
+                fill: strokeColor,
+                stroke: strokeColor,
+                strokeWidth: 0,
+                rx: 3,
+                ry: 3
+              }
+            },
+            position: { distance: 0.15, offset: 15 }
+          },
+          {
+            attrs: {
+              text: {
+                text: cardinalidadDestino,
+                fill: '#FFFFFF',
+                fontSize: 14,
+                fontWeight: 'bold'
+              },
+              rect: {
+                fill: strokeColor,
+                stroke: strokeColor,
+                strokeWidth: 0,
+                rx: 3,
+                ry: 3
+              }
+            },
+            position: { distance: 0.85, offset: 15 }
           }
-        }],
+        ],
         source: {
           id: elementoOrigen.id
         },
         target: {
           id: elementoDestino.id
         },
-        attrs: {}
+        attrs: {
+          line: {
+            stroke: strokeColor,
+            strokeWidth: 2,
+            strokeDasharray: strokeDasharray,
+            sourceMarker: sourceMarker,
+            targetMarker: targetMarker
+          }
+        }
       };
 
       this.rappid.graph.addCell(nuevaRelacion);

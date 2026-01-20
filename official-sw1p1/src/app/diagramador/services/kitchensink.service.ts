@@ -1557,6 +1557,186 @@ Estructura compacta pero legible.`;
           alert('Error al generar la colección de Postman. Revisa la consola para más detalles.');
         }
       },
+      'exportarSQL:pointerclick': async () => {
+        try {
+          console.log('🗄️ Generando schema SQL con IA...');
+          
+          // Obtener las clases y relaciones del diagrama
+          const jsonJoint = this.graph.toJSON();
+          let elementosClases: ElementoClase[] = [];
+          let elementosRelaciones: any[] = [];
+          
+          jsonJoint.cells.forEach((cell: any) => {
+            if (cell.type == 'standard.HeaderedRectangle') {
+              let elementoClase: ElementoClase = {
+                titulo: cell.attrs.headerText.text,
+                id: cell.id,
+                posicion: [cell.position.x, cell.position.y],
+                size: [cell.size.width, cell.size.height],
+                atributos: this.convertirCadenaALista(
+                  cell.attrs.bodyText.textWrap.text
+                ),
+                color: cell.attrs.body.stroke,
+              };
+              
+              // Filtrar clases intermedias
+              if (!elementoClase.color.includes('#feb663')) {
+                elementosClases.push(elementoClase);
+              }
+            } else if (cell.type == 'standard.Link') {
+              // Extraer información de la relación
+              const labels = cell.labels || [];
+              const cardinalidadOrigen = labels.find((l: any) => l.position?.distance < 0.5)?.attrs?.text?.text || '1';
+              const cardinalidadDestino = labels.find((l: any) => l.position?.distance >= 0.5)?.attrs?.text?.text || '1';
+              
+              const sourceMarker = cell.attrs?.line?.sourceMarker?.d || '';
+              const tipoRelacion = this.tipoCabecera(sourceMarker);
+              
+              elementosRelaciones.push({
+                origen: cell.source.id,
+                destino: cell.target.id,
+                tipoRelacion,
+                cardinalidadOrigen,
+                cardinalidadDestino
+              });
+            }
+          });
+
+          if (elementosClases.length === 0) {
+            alert('No hay clases en el diagrama para generar SQL');
+            return;
+          }
+
+          // Construir descripción detallada para Claude
+          let descripcionClases = elementosClases.map(clase => {
+            const atributos = clase.atributos.map(a => {
+              const atributoLimpio = a.titulo.replace(/^[+\-#~]\s*/, '').trim();
+              return `  - ${atributoLimpio}`;
+            }).join('\n');
+            return `Clase: ${clase.titulo}\nAtributos:\n${atributos}`;
+          }).join('\n\n');
+
+          // Construir descripción de relaciones
+          let descripcionRelaciones = elementosRelaciones.map(rel => {
+            const origenClase = elementosClases.find(c => c.id === rel.origen);
+            const destinoClase = elementosClases.find(c => c.id === rel.destino);
+            if (!origenClase || !destinoClase) return '';
+            
+            return `${origenClase.titulo} --[${rel.tipoRelacion}]--> ${destinoClase.titulo} (${rel.cardinalidadOrigen}..${rel.cardinalidadDestino})`;
+          }).filter(r => r !== '').join('\n');
+
+          // Construir prompt para Claude
+          const promptText = `Genera schema SQL completo para PostgreSQL basado en el siguiente diagrama UML 2.5.
+
+**CLASES DEL DIAGRAMA:**
+
+${descripcionClases}
+
+**RELACIONES:**
+
+${descripcionRelaciones}
+
+**REQUISITOS DEL SCHEMA (schema.sql):**
+
+1. **Tablas:**
+   - Nombre en minúsculas y plural: clientes, productos, ventas
+   - Columna id SERIAL PRIMARY KEY en todas las tablas
+   - Tipos PostgreSQL: INTEGER, VARCHAR(255), TEXT, BOOLEAN, DATE, TIMESTAMP, DECIMAL(10,2)
+   - Mapeo de tipos UML → PostgreSQL:
+     * Integer → INTEGER
+     * String → VARCHAR(255)
+     * Boolean → BOOLEAN
+     * Date → DATE
+     * DateTime → TIMESTAMP
+     * Double/Float → DECIMAL(10,2)
+
+2. **Relaciones según cardinalidad:**
+   - 1:1 (COMPOSICION/ASOCIACION) → Foreign key con UNIQUE
+   - 1:N (ASOCIACION) → Foreign key en tabla "muchos"
+   - N:M (ASOCIACION) → Tabla intermedia con dos foreign keys
+   - HERENCIA → Foreign key a tabla padre
+
+3. **Constraints:**
+   - NOT NULL en campos obligatorios
+   - UNIQUE donde corresponda
+   - ON DELETE CASCADE/SET NULL según tipo de relación
+   - CHECK constraints para validaciones
+
+4. **Índices:**
+   - CREATE INDEX en foreign keys
+   - CREATE INDEX en campos frecuentemente consultados
+
+**REQUISITOS DEL SEED (seed.sql):**
+
+1. **Datos de prueba realistas:**
+   - Mínimo 5 registros por tabla
+   - Respetar foreign keys (insertar padres antes que hijos)
+   - Valores coherentes y realistas
+   - Fechas actuales o recientes
+
+2. **Orden de inserción:**
+   - Tablas sin dependencias primero
+   - Luego tablas con foreign keys
+   - Finalmente tablas intermedias (N:M)
+
+**FORMATO DE RESPUESTA:**
+
+Genera DOS archivos SQL separados por comentarios:
+
+-- SCHEMA.SQL
+-- Creación de tablas con relaciones
+
+DROP TABLE IF EXISTS [tablas] CASCADE;
+
+CREATE TABLE ... ;
+
+-- SEED.SQL  
+-- Datos de prueba
+
+INSERT INTO ... ;
+
+IMPORTANTE:
+- SQL válido para PostgreSQL
+- Sin markdown, sin \`\`\`sql
+- Comentarios descriptivos
+- Script ejecutable directamente`;
+
+          // Llamar a la API de IA
+          const response = await this.http.post<any>(`${this.apiUrl}/chat-ia/generar-sql`, {
+            prompt: promptText
+          }).toPromise();
+
+          if (!response || !response.ok) {
+            throw new Error('Error al generar SQL con IA');
+          }
+
+          // Obtener los archivos SQL
+          const schemaSQL = response.schema;
+          const seedSQL = response.seed;
+
+          // Solicitar nombre base para los archivos
+          const nombreBase = window.prompt('Ingrese el nombre base para los archivos SQL:', 'database');
+          const nombreFinal = nombreBase && nombreBase.trim() !== '' 
+            ? nombreBase.trim() 
+            : 'database';
+
+          // Crear ZIP con ambos archivos
+          const zip = new JSZip();
+          zip.file(`${nombreFinal}-schema.sql`, schemaSQL);
+          zip.file(`${nombreFinal}-seed.sql`, seedSQL);
+
+          // Descargar ZIP
+          zip.generateAsync({ type: 'blob' }).then((content) => {
+            saveAs(content, `${nombreFinal}-postgresql.zip`);
+            console.log('✅ Archivos SQL generados:', `${nombreFinal}-postgresql.zip`);
+            alert('¡Archivos SQL generados exitosamente!\n\nContiene:\n- schema.sql (estructura de tablas)\n- seed.sql (datos de prueba)');
+          });
+          
+        } catch (error) {
+          console.error('❌ Error al generar SQL:', error);
+          alert('Error al generar archivos SQL. Revisa la consola para más detalles.');
+        }
+      },
       'jsonExportar:pointerclick': () => {
         // LOGIC : Convertir el objeto JSON a una cadena
         let graphJSON = this.graph.toJSON();

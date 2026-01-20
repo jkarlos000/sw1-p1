@@ -34,6 +34,43 @@ router.get("/health", (req: Request, res: Response) => {
 router.post("/users/confirm-login", login);
 router.post("/users", registre);
 
+// OBTENER SALAS DE USUARIO - GET Endpoint
+router.get("/users/:email/salas", async (req: Request, res: Response) => {
+  const { email } = req.params;
+  console.log('📡 Obteniendo salas para usuario:', email);
+  if (!email) {
+    return res.status(400).json({ ok: false, mensaje: 'Email es requerido' });
+  }
+  try {
+    const query = `
+      SELECT s.id_sala, s.nombre_sala, s.host_sala, s.fecha_creacion, 
+             (SELECT COUNT(*) FROM asistencia WHERE id_sala = s.id_sala) as total_asistentes
+      FROM sala s
+      JOIN asistencia a ON s.id_sala = a.id_sala
+      JOIN usuario u ON a.id_usuario = u.id_usuario
+      WHERE u.email = $1
+      ORDER BY s.fecha_creacion DESC
+    `;
+    const resultado = await pool.query(query, [email]);
+    console.log('✅ Salas encontradas:', resultado.rows.length);
+    
+    res.json({
+      ok: true,
+      salas: resultado.rows.map(row => ({
+        id: row.id_sala,
+        codigo: row.nombre_sala,
+        host: row.host_sala,
+        esHost: row.host_sala === email,
+        totalAsistentes: parseInt(row.total_asistentes),
+        fechaCreacion: row.fecha_creacion
+      }))
+    });
+  } catch (error) {
+    console.error('❌ Error al obtener salas del usuario:', error);
+    res.status(500).json({ ok: false, mensaje: 'Error al obtener salas' });
+  }
+});
+
 // ========================================
 // RUTAS DE SALA DE TRABAJO (HTTP Fallback/Complemento)
 // Nota: La mayoría de estas operaciones ahora se manejan via WebSocket
@@ -304,6 +341,52 @@ router.post("/asistentesSala", async (req: Request, res: Response) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ ok: false, mensaje: 'Error en consulta BD' });
+  }
+});
+// ELIMINAR SALA POR ID - DELETE Endpoint
+router.delete("/salas/:id_sala", async (req: Request, res: Response) => {
+  const { id_sala } = req.params;
+  const { email } = req.body; // Email del usuario que solicita eliminar
+  
+  console.log('🗑️ Solicitud de eliminar sala:', id_sala, 'por usuario:', email);
+  
+  if (!id_sala) {
+    return res.status(400).json({ ok: false, mensaje: 'ID de sala es requerido' });
+  }
+  
+  try {
+    // Verificar que la sala existe y obtener el host
+    const salaQuery = await pool.query(
+      'SELECT host_sala FROM sala WHERE id_sala = $1',
+      [id_sala]
+    );
+    
+    if (salaQuery.rows.length === 0) {
+      return res.status(404).json({ ok: false, mensaje: 'Sala no encontrada' });
+    }
+    
+    const hostSala = salaQuery.rows[0].host_sala;
+    
+    // Verificar que el usuario sea el host de la sala
+    if (email && hostSala !== email) {
+      return res.status(403).json({ ok: false, mensaje: 'Solo el host puede eliminar la sala' });
+    }
+    
+    // Eliminar la sala (CASCADE eliminará automáticamente las asistencias)
+    const deleteResult = await pool.query(
+      'DELETE FROM sala WHERE id_sala = $1',
+      [id_sala]
+    );
+    
+    if (deleteResult.rowCount && deleteResult.rowCount > 0) {
+      console.log('✅ Sala eliminada correctamente:', id_sala);
+      res.json({ ok: true, mensaje: 'Sala eliminada correctamente' });
+    } else {
+      res.status(500).json({ ok: false, mensaje: 'No se pudo eliminar la sala' });
+    }
+  } catch (error) {
+    console.error('❌ Error al eliminar sala:', error);
+    res.status(500).json({ ok: false, mensaje: 'Error al eliminar sala' });
   }
 });
 // ELIMINAR SALA

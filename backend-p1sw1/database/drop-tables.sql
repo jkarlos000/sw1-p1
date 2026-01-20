@@ -8,6 +8,12 @@
 -- Eliminar tablas en orden correcto (respetando foreign keys)
 -- ============================================
 
+-- Tablas UML 2.5
+DROP TABLE IF EXISTS parametro_metodo CASCADE;
+DROP TABLE IF EXISTS metodo_clase CASCADE;
+DROP TABLE IF EXISTS atributo_clase CASCADE;
+DROP TABLE IF EXISTS clase_uml CASCADE;
+
 -- Tablas de funcionalidades de IA
 DROP TABLE IF EXISTS mensaje_attachment CASCADE;
 DROP TABLE IF EXISTS snapshot_diagrama CASCADE;
@@ -22,6 +28,7 @@ DROP TABLE IF EXISTS usuario CASCADE;
 
 -- Eliminar funciones y triggers
 DROP FUNCTION IF EXISTS actualizar_fecha_conversacion() CASCADE;
+DROP FUNCTION IF EXISTS actualizar_fecha_clase() CASCADE;
 
 -- Mensaje de confirmación
 DO $$
@@ -38,5 +45,9 @@ BEGIN
     RAISE NOTICE '  - mensaje_attachment (multimodal)';
     RAISE NOTICE '  - snapshot_diagrama';
     RAISE NOTICE '  - config_ia';
+    RAISE NOTICE '  - clase_uml';
+    RAISE NOTICE '  - atributo_clase';
+    RAISE NOTICE '  - metodo_clase';
+    RAISE NOTICE '  - parametro_metodo';
     RAISE NOTICE '============================================';
 END $$;

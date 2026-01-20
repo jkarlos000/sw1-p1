@@ -113,10 +113,8 @@ INSERT INTO mensaje_chat_ia (id_conversacion, id_usuario, tipo_mensaje, contenid
 -- ============================================
 -- ATTACHMENTS DE EJEMPLO (Multimodal)
 -- ============================================
--- Simulación de attachments para el mensaje multimodal de la conversación 3
-
 INSERT INTO mensaje_attachment (mensaje_id, tipo, archivo_url, archivo_nombre, archivo_tamano, mime_type, transcripcion, duracion_segundos, servicio_transcripcion, ancho, alto, analisis_ia) VALUES
-    -- Audio de ejemplo (conversación futura)
+    -- Audio de ejemplo
     ((SELECT id_mensaje FROM mensaje_chat_ia WHERE id_conversacion = 3 AND tipo_mensaje = 'usuario' LIMIT 1), 
      'audio', 
      '/uploads/sala_3/audio_1736985600_123456789.webm', 
@@ -222,9 +220,72 @@ INSERT INTO snapshot_diagrama (id_conversacion, id_mensaje, diagrama_json, descr
      'Diagrama generado desde imagen con Claude Vision');
 
 -- ============================================
+-- CLASES UML DE EJEMPLO
+-- ============================================
+INSERT INTO clase_uml (id_sala, cell_id, nombre_clase, x_position, y_position, ancho, alto) VALUES
+    (1, 'clase-libro-001', 'Libro', 100.00, 100.00, 200.00, 150.00),
+    (1, 'clase-usuario-001', 'Usuario', 400.00, 100.00, 200.00, 180.00),
+    (2, 'clase-producto-001', 'Producto', 150.00, 150.00, 220.00, 160.00);
+
+-- ============================================
+-- ATRIBUTOS DE CLASES UML
+-- ============================================
+INSERT INTO atributo_clase (id_clase, nombre, tipo, visibility, es_static, valor_default, orden_visualizacion) VALUES
+    -- Clase Libro
+    (1, 'isbn', 'String', 'private', false, NULL, 1),
+    (1, 'titulo', 'String', 'private', false, NULL, 2),
+    (1, 'autor', 'String', 'private', false, NULL, 3),
+    (1, 'anioPublicacion', 'int', 'private', false, NULL, 4),
+    
+    -- Clase Usuario
+    (2, 'id', 'int', 'private', false, NULL, 1),
+    (2, 'nombre', 'String', 'private', false, NULL, 2),
+    (2, 'email', 'String', 'private', false, NULL, 3),
+    (2, 'activo', 'boolean', 'private', false, 'true', 4),
+    
+    -- Clase Producto
+    (3, 'id', 'int', 'private', false, NULL, 1),
+    (3, 'nombre', 'String', 'private', false, NULL, 2),
+    (3, 'precio', 'double', 'private', false, '0.0', 3),
+    (3, 'stock', 'int', 'private', false, '0', 4);
+
+-- ============================================
+-- MÉTODOS DE CLASES UML
+-- ============================================
+INSERT INTO metodo_clase (id_clase, nombre, tipo_retorno, visibility, es_static, es_abstract, orden_visualizacion) VALUES
+    -- Clase Libro
+    (1, 'prestar', 'void', 'public', false, false, 1),
+    (1, 'devolver', 'void', 'public', false, false, 2),
+    (1, 'estaDisponible', 'boolean', 'public', false, false, 3),
+    
+    -- Clase Usuario
+    (2, 'login', 'boolean', 'public', false, false, 1),
+    (2, 'logout', 'void', 'public', false, false, 2),
+    (2, 'validarEmail', 'boolean', 'private', false, false, 3),
+    
+    -- Clase Producto
+    (3, 'calcularDescuento', 'double', 'public', false, false, 1),
+    (3, 'actualizarStock', 'void', 'public', false, false, 2),
+    (3, 'getInfo', 'String', 'public', false, false, 3);
+
+-- ============================================
+-- PARÁMETROS DE MÉTODOS
+-- ============================================
+INSERT INTO parametro_metodo (id_metodo, nombre, tipo, orden_parametro) VALUES
+    -- Método login (Usuario)
+    (4, 'email', 'String', 1),
+    (4, 'password', 'String', 2),
+    
+    -- Método calcularDescuento (Producto)
+    (7, 'porcentaje', 'double', 1),
+    
+    -- Método actualizarStock (Producto)
+    (8, 'cantidad', 'int', 1),
+    (8, 'operacion', 'String', 2);
+
+-- ============================================
 -- VERIFICACIÓN
 -- ============================================
--- Mostrar resumen de datos insertados
 DO $$
 DECLARE
     v_usuarios INTEGER;
@@ -232,12 +293,18 @@ DECLARE
     v_conversaciones INTEGER;
     v_mensajes INTEGER;
     v_attachments INTEGER;
+    v_clases INTEGER;
+    v_atributos INTEGER;
+    v_metodos INTEGER;
 BEGIN
     SELECT COUNT(*) INTO v_usuarios FROM usuario;
     SELECT COUNT(*) INTO v_salas FROM sala;
     SELECT COUNT(*) INTO v_conversaciones FROM conversacion_ia;
     SELECT COUNT(*) INTO v_mensajes FROM mensaje_chat_ia;
     SELECT COUNT(*) INTO v_attachments FROM mensaje_attachment;
+    SELECT COUNT(*) INTO v_clases FROM clase_uml;
+    SELECT COUNT(*) INTO v_atributos FROM atributo_clase;
+    SELECT COUNT(*) INTO v_metodos FROM metodo_clase;
     
     RAISE NOTICE '============================================';
     RAISE NOTICE 'DATOS DE PRUEBA INSERTADOS CORRECTAMENTE';
@@ -247,5 +314,8 @@ BEGIN
     RAISE NOTICE 'Conversaciones IA: %', v_conversaciones;
     RAISE NOTICE 'Mensajes: %', v_mensajes;
     RAISE NOTICE 'Attachments: %', v_attachments;
+    RAISE NOTICE 'Clases UML: %', v_clases;
+    RAISE NOTICE 'Atributos: %', v_atributos;
+    RAISE NOTICE 'Métodos: %', v_metodos;
     RAISE NOTICE '============================================';
 END $$;

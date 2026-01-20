@@ -1,4 +1,4 @@
-/*! JointJS+ v4.0.1 - HTML5 Diagramming Framework - TRIAL VERSION
+﻿/*! JointJS+ v4.0.1 - HTML5 Diagramming Framework - TRIAL VERSION
 
 Copyright (c) 2024 client IO
 
@@ -25,6 +25,7 @@ import {
   ElementoCabezera,
   ElementoClase,
   ElementoLink,
+  MetodoClase,
 } from '../interfaces/jsonJoint.interface';
 import {
   AtributosSB,
@@ -60,8 +61,9 @@ class KitchenSinkService {
   haloService: HaloService;
   keyboardService: KeyboardService;
   
-  // Callback para limpiar diagrama y sincronizar
+  // Callbacks para sincronizaciÃ³n con otros usuarios
   onClearDiagram?: () => void;
+  onImportDiagram?: () => void;
 
   configService: ConfigService;
 
@@ -445,14 +447,14 @@ class KitchenSinkService {
       return [];
     }
 
-    // Separar atributos de métodos usando el separador UML ───────
-    const partes = cadena.split(/─{5,}/); // Separador de 5 o más guiones largos
+    // Separar atributos de mÃ©todos usando el separador UML â”€â”€â”€â”€â”€â”€â”€
+    const partes = cadena.split(/â”€{5,}/); // Separador de 5 o mÃ¡s guiones largos
     const seccionAtributos = partes[0] || '';
     
-    // Dividir por saltos de línea
+    // Dividir por saltos de lÃ­nea
     const lineas = seccionAtributos.split(/\\n|\n/);
     
-    // Filtrar solo líneas que NO contengan paréntesis (métodos)
+    // Filtrar solo lÃ­neas que NO contengan parÃ©ntesis (mÃ©todos)
     const lineasAtributos = lineas.filter(linea => {
       const lineaTrim = linea.trim();
       return lineaTrim !== '' && 
@@ -470,6 +472,36 @@ class KitchenSinkService {
     });
 
     return listaAtributos;
+  }
+
+  convertirCadenaAMetodos(cadena: string): MetodoClase[] {
+    if (!cadena || cadena.trim() === '') {
+      return [];
+    }
+
+    // Separar atributos de mÃ©todos usando el separador UML â”€â”€â”€â”€â”€â”€â”€
+    const partes = cadena.split(/â”€{5,}/); // Separador de 5 o mÃ¡s guiones largos
+    const seccionMetodos = partes[1] || '';
+    
+    // Dividir por saltos de lÃ­nea
+    const lineas = seccionMetodos.split(/\\n|\n/);
+    
+    // Filtrar solo lÃ­neas que contengan parÃ©ntesis (mÃ©todos)
+    const lineasMetodos = lineas.filter(linea => {
+      const lineaTrim = linea.trim();
+      return lineaTrim !== '' && 
+             (lineaTrim.includes('(') || lineaTrim.includes(')'));
+    });
+
+    // Crear lista de mÃ©todos
+    const listaMetodos: MetodoClase[] = lineasMetodos.map((linea) => {
+      return {
+        id: uuidv4(),
+        nombre: linea.trim()
+      };
+    });
+
+    return listaMetodos;
   }
 
   tipoCabecera(tipo: string): string {
@@ -577,11 +609,11 @@ class KitchenSinkService {
           const archivo = event.target.files[0];
           if (archivo) {
             try {
-              let xmlContent: string;
+              let xmlContent: string = '';
 
               // Si es un ZIP, extraer el archivo XMI/XML
               if (archivo.name.endsWith('.zip')) {
-                console.log('📦 Archivo ZIP detectado, extrayendo...');
+                console.log('ðŸ“¦ Archivo ZIP detectado, extrayendo...');
                 const zip = new JSZip();
                 const zipContent = await zip.loadAsync(archivo);
                 
@@ -591,20 +623,47 @@ class KitchenSinkService {
                 );
                 
                 if (!xmiFile) {
-                  alert('No se encontró ningún archivo XMI o XML en el ZIP');
+                  alert('No se encontrÃ³ ningÃºn archivo XMI o XML en el ZIP');
                   return;
                 }
                 
-                console.log('📄 Archivo encontrado:', xmiFile);
+                console.log('ðŸ“„ Archivo encontrado:', xmiFile);
                 xmlContent = await zipContent.files[xmiFile].async('string');
               } else {
                 // Leer archivo XMI/XML directamente
-                const lector = new FileReader();
+                console.log('ðŸ“„ Leyendo archivo XML/XMI directamente...');
                 xmlContent = await new Promise<string>((resolve, reject) => {
-                  lector.onload = (e) => resolve(e.target!.result as string);
-                  lector.onerror = reject;
+                  const lector = new FileReader();
+                  lector.onload = (e) => {
+                    if (e.target && e.target.result) {
+                      resolve(e.target.result as string);
+                    } else {
+                      reject(new Error('No se pudo leer el contenido del archivo'));
+                    }
+                  };
+                  lector.onerror = () => reject(new Error('Error al leer el archivo'));
                   lector.readAsText(archivo);
                 });
+              }
+
+              // Verificar que se leyÃ³ contenido
+              if (!xmlContent || xmlContent.trim() === '') {
+                throw new Error('El archivo estÃ¡ vacÃ­o o no se pudo leer');
+              }
+
+              console.log('âœ… Archivo leÃ­do correctamente, tamaÃ±o:', xmlContent.length, 'caracteres');
+              
+              // Buscar la palabra 'connector' en el XML para verificar
+              const connectorsEnXML = (xmlContent.match(/<connector/g) || []).length;
+              console.log(`ðŸ” Conectores encontrados en XML (bÃºsqueda de texto): ${connectorsEnXML}`);
+              
+              // Mostrar un fragmento del XML donde aparece "connector"
+              if (connectorsEnXML > 0) {
+                const indexConnector = xmlContent.indexOf('<connector');
+                if (indexConnector !== -1) {
+                  const fragmento = xmlContent.substring(Math.max(0, indexConnector - 100), Math.min(xmlContent.length, indexConnector + 500));
+                  console.log('ðŸ“„ Fragmento del XML con connector:', fragmento);
+                }
               }
 
               // Parsear el contenido del XML
@@ -614,25 +673,64 @@ class KitchenSinkService {
                 'application/xml'
               );
 
-              console.log('✅ XML parseado correctamente');
+              // Verificar errores de parsing
+              const parserError = xmlDoc.getElementsByTagName('parsererror');
+              if (parserError.length > 0) {
+                console.error('âŒ Error al parsear XML:', parserError[0].textContent);
+                throw new Error('XML malformado: ' + parserError[0].textContent);
+              }
+
+              console.log('âœ… XML parseado correctamente');
 
               // LOGIC : ACCEDER <element> con xmi:type="uml:Class"
               // LOGIC : ACCEDER <element> aqui van los datos de coordenadas en el papel
-              const packagedElements = xmlDoc.getElementsByTagName('element');
+              // Primero buscar el contenedor <elements>
+              const elementsContainer = xmlDoc.getElementsByTagName('elements')[0];
+              let packagedElements: HTMLCollectionOf<Element> | Element[] = [] as any;
+              
+              if (elementsContainer) {
+                packagedElements = elementsContainer.getElementsByTagName('element');
+                console.log(`ðŸ“Š Total de elementos <element> encontrados: ${packagedElements.length}`);
+              } else {
+                // Intentar bÃºsqueda global si no hay contenedor
+                packagedElements = xmlDoc.getElementsByTagName('element');
+                console.log(`ðŸ“Š Total de elementos encontrados (bÃºsqueda global): ${packagedElements.length}`);
+              }
+              
               let clasesJoint: Element[] = [];
               let dataClasesJoint: Element[] = [];
+
+              console.log(`ðŸ“Š Total de elementos encontrados: ${packagedElements.length}`);
 
               for (let i = 0; i < packagedElements.length; i++) {
                 const element = packagedElements[i];
                 // Verificar si el atributo 'xmi:idref' existe
                 if (element.hasAttribute('xmi:idref')) {
                   clasesJoint.push(element);
+                  console.log(`âœ… Clase encontrada: ${element.getAttribute('name')}`);
                 }
                 // Verificar si el atributo 'geometry' existe
                 if (element.hasAttribute('geometry')) {
                   dataClasesJoint.push(element);
                 }
               }
+
+              // Buscar geometrÃ­as en la secciÃ³n <diagrams>
+              const diagramsContainer = xmlDoc.getElementsByTagName('diagrams')[0];
+              if (diagramsContainer) {
+                console.log('ðŸ“ Contenedor <diagrams> encontrado');
+                const diagramElements = diagramsContainer.getElementsByTagName('element');
+                console.log(`ðŸ“ Elementos con geometrÃ­a encontrados: ${diagramElements.length}`);
+                
+                for (let i = 0; i < diagramElements.length; i++) {
+                  const element = diagramElements[i];
+                  if (element.hasAttribute('geometry')) {
+                    dataClasesJoint.push(element);
+                  }
+                }
+              }
+
+              console.log(`ðŸ“¦ Total de clases: ${clasesJoint.length}, GeometrÃ­as: ${dataClasesJoint.length}`);
 
               function getGeometryValues(id: string): string[] {
                 for (let i = 0; i < dataClasesJoint.length; i++) {
@@ -642,7 +740,7 @@ class KitchenSinkService {
                   if (subject == id) {
                     const geometry = element.getAttribute('geometry');
                     if (geometry) {
-                      // Extraer los valores numéricos de geometry
+                      // Extraer los valores numÃ©ricos de geometry
                       const values = geometry.match(/\d+/g);
                       if (values) {
                         return values;
@@ -650,11 +748,33 @@ class KitchenSinkService {
                     }
                   }
                 }
-                return ['100', '100']; // Posición por defecto si no se encuentra
+                return ['100', '100']; // PosiciÃ³n por defecto si no se encuentra
               }
 
               // LOGIC : ACCEDER <connector>
-              const connectors = xmlDoc.getElementsByTagName('connector');
+              // Primero buscar el contenedor <connectors>
+              const connectorsContainer = xmlDoc.getElementsByTagName('connectors')[0];
+              let connectors: HTMLCollectionOf<Element> | Element[] = [] as any;
+              
+              if (connectorsContainer) {
+                console.log('ðŸ“¦ Contenedor <connectors> encontrado');
+                console.log('ðŸ“¦ Hijos directos:', connectorsContainer.childNodes.length);
+                
+                // Ver quÃ© hay dentro
+                for (let i = 0; i < Math.min(connectorsContainer.childNodes.length, 10); i++) {
+                  const child = connectorsContainer.childNodes[i];
+                  if (child.nodeType === 1) {
+                    console.log(`  â””â”€ ${child.nodeName}`);
+                  }
+                }
+                
+                // Buscar los <connector> dentro del contenedor
+                connectors = connectorsContainer.getElementsByTagName('connector');
+                console.log(`ðŸ”— Total de conectores encontrados: ${connectors.length}`);
+              } else {
+                console.log('âŒ No se encontrÃ³ el elemento <connectors>');
+                connectors = [] as any;
+              }
 
               let clasesJsonToJoint: string[] = [];
               // READ : CREAR LAS Clases Normales e intermedias
@@ -664,7 +784,7 @@ class KitchenSinkService {
                 let color = nombre?.includes('_') ? '#feb663' : '#31d0c6';
                 let coordenadas: string[] = getGeometryValues(id!);
 
-                // LOGIC: Lista para almacenar los resultados
+                // LOGIC: Lista para almacenar atributos y mÃ©todos
                 let attributeList = '';
                 const attributes = element.getElementsByTagName('attribute');
                 for (let j = 0; j < attributes.length; j++) {
@@ -680,6 +800,24 @@ class KitchenSinkService {
                     }
                   }
 
+                // LOGIC: Importar mÃ©todos
+                let methodList = '';
+                const operations = element.getElementsByTagName('operation');
+                for (let j = 0; j < operations.length; j++) {
+                  const operation = operations[j];
+                  const name = operation.getAttribute('name');
+                  if (name) {
+                    methodList += `+${name}\\n`;
+                  }
+                }
+
+                // LOGIC: Combinar atributos y mÃ©todos con separador UML
+                let bodyText = attributeList;
+                if (methodList) {
+                  bodyText += 'â”€â”€â”€â”€â”€â”€â”€â”€â”€\\n' + methodList;
+                }
+                bodyText = bodyText.replace(/\\n$/,''); // Quitar Ãºltimo salto
+
                   clasesJsonToJoint.push(`
           {
     "type": "standard.HeaderedRectangle",
@@ -688,8 +826,8 @@ class KitchenSinkService {
       "y": ${coordenadas[1]}
     },
     "size": {
-      "width": 200,
-      "height": 100
+      "width": 250,
+      "height": 300
     },
     "angle": 0,
     "id": "${id}",
@@ -714,7 +852,7 @@ class KitchenSinkService {
         "y": 10,
         "fontSize": 11,
         "fill": "#000000",
-        "text": "Cliente",
+        "text": "${nombre}",
         "fontFamily": "Averia Libre",
         "fontWeight": "Bold",
         "strokeWidth": 0
@@ -724,10 +862,10 @@ class KitchenSinkService {
         "fontSize": 11,
         "fill": "#FFFFFF",
         "textWrap": {
-          "text": "${attributeList}",
+          "text": "${bodyText}",
           "width": -10,
           "height": -20,
-          "ellipsis": true
+          "ellipsis": false
         },
         "fontFamily": "Averia Libre",
         "fontWeight": "Bold",
@@ -738,6 +876,7 @@ class KitchenSinkService {
                 });
 
                 let linksJsonToJoint: string[] = [];
+                
                 for (let i = 0; i < connectors.length; i++) {
                   const connector = connectors[i];
                   let sourceId = '';
@@ -749,20 +888,21 @@ class KitchenSinkService {
                   let intermediaId = '';
                   // Obtener el atributo xmi:idref del connector
                   const connectorId = connector.getAttribute('xmi:idref');
-                  console.log('Connector ID:', connectorId);
 
                   // Obtener el elemento source y su atributo xmi:idref
+                  let sourceAggregation = '';
+                  let targetAggregation = '';
+                  
                   const source = connector.getElementsByTagName('source')[0];
                   if (source) {
                     sourceId = source.getAttribute('xmi:idref')!;
-                    console.log('Source ID:', sourceId);
 
-                    // Obtener el elemento type dentro de source y su atributo multiplicity
+                    // Obtener el elemento type dentro de source y su atributo multiplicity y aggregation
                     const sourceType = source.getElementsByTagName('type')[0];
                     if (sourceType) {
                       sourceMultiplicity =
                         sourceType.getAttribute('multiplicity')!;
-                      console.log('Source Multiplicity:', sourceMultiplicity);
+                      sourceAggregation = sourceType.getAttribute('aggregation') || '';
                     }
                   }
 
@@ -770,15 +910,21 @@ class KitchenSinkService {
                   const target = connector.getElementsByTagName('target')[0];
                   if (target) {
                     targetId = target.getAttribute('xmi:idref')!;
-                    console.log('Target ID:', targetId);
 
-                    // Obtener el elemento type dentro de target y su atributo multiplicity
+                    // Obtener el elemento type dentro de target y su atributo multiplicity y aggregation
                     const targetType = target.getElementsByTagName('type')[0];
                     if (targetType) {
                       targetMultiplicity =
                         targetType.getAttribute('multiplicity')!;
-                      console.log('Target Multiplicity:', targetMultiplicity);
+                      targetAggregation = targetType.getAttribute('aggregation') || '';
                     }
+                  }
+                  
+                  // Determinar quÃ© agregaciÃ³n usar basÃ¡ndose en cuÃ¡l lado la tiene
+                  if (sourceAggregation && sourceAggregation !== 'none') {
+                    subtype = sourceAggregation;
+                  } else if (targetAggregation && targetAggregation !== 'none') {
+                    subtype = targetAggregation;
                   }
 
                   // Obtener el elemento properties y su atributo ea_type
@@ -786,7 +932,12 @@ class KitchenSinkService {
                     connector.getElementsByTagName('properties')[0];
                   if (properties) {
                     eaType = properties.getAttribute('ea_type')!;
-                    subtype = properties.getAttribute('subtype') ?? '';
+                    const subtypeFromProps = properties.getAttribute('subtype') ?? '';
+                    
+                    // Solo usar subtype de properties si existe, sino mantener el de aggregation
+                    if (subtypeFromProps && subtypeFromProps !== '') {
+                      subtype = subtypeFromProps;
+                    }
                   }
 
                   const extendedProperties =
@@ -795,6 +946,7 @@ class KitchenSinkService {
                     intermediaId =
                       extendedProperties.getAttribute('associationclass') ?? '';
                   }
+                  
                   const uuid1 = uuidv4();
                   const uuid2 = uuidv4();
                   if (
@@ -861,37 +1013,33 @@ class KitchenSinkService {
 "attrs": {}
 }`);
                   } else {
-                    let d: string = '';
-                    if (eaType == 'Association' && subtype == '') {
+                    // Determinar si el marcador va en source o target
+                    let markerEnSource = false;
+                    let d = '';
+                    
+                    if (eaType == 'Association' && (subtype == '' || subtype == 'none')) {
                       d = this.tipoCabeceraInversa('ASOCIACION');
                     }
-                    if (eaType == 'Generalization' && subtype == '') {
+                    if (eaType == 'Generalization' && (subtype == '' || subtype == 'none')) {
                       d = this.tipoCabeceraInversa('HERENCIA');
                     }
-                    if (eaType == 'Aggregation' && subtype == 'Strong') {
+                    if (eaType == 'Aggregation' && subtype == 'composite') {
                       d = this.tipoCabeceraInversa('COMPOSICION');
+                      markerEnSource = (sourceAggregation === 'composite');
                     }
-                    if (eaType == 'Aggregation' && subtype == 'Weak') {
+                    if (eaType == 'Aggregation' && subtype == 'shared') {
                       d = this.tipoCabeceraInversa('AGREGACION');
+                      markerEnSource = (sourceAggregation === 'shared');
                     }
-                    if (eaType == 'Dependency' && subtype == '') {
+                    if (eaType == 'Dependency' && (subtype == '' || subtype == 'none')) {
                       d = this.tipoCabeceraInversa('DEPENDENCIA');
+                      markerEnSource = false; // Las dependencias siempre van al target
                     }
 
-                    linksJsonToJoint.push(`
-     {
-"type": "app.Link",
-"router": {
-"name": "normal"
-},
-"connector": {
-"name": "rounded"
-},
-"labels": [
-${
-  sourceMultiplicity
-    ? `
-{
+                    // Construir labels array correctamente sin comas sobrantes
+                    const labels: string[] = [];
+                    if (sourceMultiplicity) {
+                      labels.push(`{
 "attrs": {
 "text": {
 "text": "${sourceMultiplicity}",
@@ -903,14 +1051,10 @@ ${
 "offset": 0,
 "angle": 0
 }
-},
-`
-    : ''
-}
-${
-  targetMultiplicity
-    ? `
-{
+}`);
+                    }
+                    if (targetMultiplicity) {
+                      labels.push(`{
 "attrs": {
 "text": {
 "text": "${targetMultiplicity}",
@@ -922,10 +1066,27 @@ ${
 "offset": 0,
 "angle": 0
 }
-}
-`
-    : ''
-}
+}`);
+                    }
+                    
+                    // Construir el JSON segÃºn donde va el marcador
+                    let markerJson = '';
+                    if (markerEnSource) {
+                      markerJson = `"sourceMarker": { "d": "${d}", "fill": "#feb663" }`;
+                    } else {
+                      markerJson = `"targetMarker": { "d": "${d}", "fill": "#feb663" }`;
+                    }
+                    
+                    linksJsonToJoint.push(`{
+"type": "app.Link",
+"router": {
+"name": "normal"
+},
+"connector": {
+"name": "rounded"
+},
+"labels": [
+${labels.join(',')}
 ],
 "source": {
 "id": "${sourceId}"
@@ -938,33 +1099,36 @@ ${
 "vertices": [],
 "attrs": {
 "line": {
-"targetMarker": {
-"d": "${d}",
-"fill": "#feb663"
-}
+${markerJson}
 }
 }
 }`);
                   }
                 }
 
-                // READ : GENERAR EL JSON
-                const jsonJoint = `
-                  {
-                    "cells": [
-                      ${clasesJsonToJoint.join(',')},
-                      ${linksJsonToJoint.join(',')}
-                    ]
-                  }
-                `;
-                console.log('📋 Diagrama generado desde XML:', jsonJoint.substring(0, 200) + '...');
+                // READ : GENERAR EL JSON - Filtrar elementos vacÃ­os
+                const allCells = [...clasesJsonToJoint, ...linksJsonToJoint].filter(c => c && c.trim() !== '');
+                
+                const jsonJoint = `{
+"cells": [
+${allCells.join(',\n')}
+]
+}`;
+                console.log('ðŸ“‹ Diagrama generado desde XML:', jsonJoint.substring(0, 500) + '...');
                 this.graph.fromJSON(JSON.parse(jsonJoint));
-                console.log('✅ Diagrama cargado exitosamente');
-                alert(`¡Diagrama importado exitosamente!\n\n${clasesJoint.length} clases y ${connectors.length} relaciones cargadas.`);
+                console.log('âœ… Diagrama cargado exitosamente');
+                
+                // Sincronizar con otros usuarios
+                if (this.onImportDiagram) {
+                  this.onImportDiagram();
+                  console.log('ðŸ”„ Diagrama sincronizado con otros usuarios');
+                }
+                
+                alert(`Â¡Diagrama importado exitosamente!\n\n${clasesJoint.length} clases y ${connectors.length} relaciones cargadas.`);
               
             } catch (error) {
-              console.error('❌ Error al leer el archivo XML:', error);
-              alert('Error al importar el diagrama XML.\n\nVerifica que el archivo sea un XMI/XML válido.\n\nRevisa la consola para más detalles.');
+              console.error('âŒ Error al leer el archivo XML:', error);
+              alert('Error al importar el diagrama XML.\n\nVerifica que el archivo sea un XMI/XML vÃ¡lido.\n\nRevisa la consola para mÃ¡s detalles.');
             }
           }
         };
@@ -1297,12 +1461,12 @@ private List<${claseF.titulo}> ${pluralize(claseF.titulo.toLowerCase())};
         zip.file('pom.xml', pomXml);
 
         // Crear application.properties
-        const applicationProperties = `# Configuración de la base de datos PostgreSQL
+        const applicationProperties = `# ConfiguraciÃ³n de la base de datos PostgreSQL
 spring.datasource.url=jdbc:postgresql://localhost:5432/nombre_base_datos
 spring.datasource.username=postgres
 spring.datasource.password=tu_password
 
-# Configuración de JPA/Hibernate
+# ConfiguraciÃ³n de JPA/Hibernate
 spring.jpa.hibernate.ddl-auto=update
 spring.jpa.show-sql=true
 spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
@@ -1311,7 +1475,7 @@ spring.jpa.properties.hibernate.format_sql=true
 # Puerto del servidor
 server.port=8080
 
-# Configuración de logs
+# ConfiguraciÃ³n de logs
 logging.level.org.hibernate.SQL=DEBUG
 logging.level.org.hibernate.type.descriptor.sql.BasicBinder=TRACE`;
 
@@ -1334,19 +1498,19 @@ public class Application {
 
         // Crear archivo README.md con un contenido simplificado pero completo
         const contenidoREADME = [
-          '# Proyecto Spring Boot - Generado Automáticamente',
+          '# Proyecto Spring Boot - Generado AutomÃ¡ticamente',
           '',
-          'Este proyecto Spring Boot fue generado automáticamente a partir de un diagrama UML 2.5 y contiene una API REST completamente funcional.',
+          'Este proyecto Spring Boot fue generado automÃ¡ticamente a partir de un diagrama UML 2.5 y contiene una API REST completamente funcional.',
           '',
           '## Estructura del Proyecto',
           '',
           'proyecto/',
-          '├── modelos/           # Entidades JPA (@Entity) con relaciones',
-          '├── repositorios/      # Interfaces JpaRepository para acceso a datos',
-          '├── servicios/         # Lógica de negocio',
-          '├── controladores/     # Endpoints REST (@RestController)',
-          '├── application.properties  # Configuración',
-          '└── pom.xml           # Dependencias Maven',
+          'â”œâ”€â”€ modelos/           # Entidades JPA (@Entity) con relaciones',
+          'â”œâ”€â”€ repositorios/      # Interfaces JpaRepository para acceso a datos',
+          'â”œâ”€â”€ servicios/         # LÃ³gica de negocio',
+          'â”œâ”€â”€ controladores/     # Endpoints REST (@RestController)',
+          'â”œâ”€â”€ application.properties  # ConfiguraciÃ³n',
+          'â””â”€â”€ pom.xml           # Dependencias Maven',
           '',
           '## Requisitos Previos',
           '',
@@ -1355,7 +1519,7 @@ public class Application {
           '3. PostgreSQL 13+ - https://www.postgresql.org/download/',
           '4. Postman (opcional) - https://www.postman.com/downloads/',
           '',
-          '## Configuración de la Base de Datos',
+          '## ConfiguraciÃ³n de la Base de Datos',
           '',
           '### Crear la Base de Datos:',
           '',
@@ -1393,17 +1557,17 @@ public class Application {
           '  "edad": 30',
           '}',
           '',
-          '## Configuración (application.properties)',
+          '## ConfiguraciÃ³n (application.properties)',
           '',
           'spring.datasource.url=jdbc:postgresql://localhost:5432/proyecto',
           'spring.jpa.hibernate.ddl-auto=update',
           'server.port=8081',
           '',
-          '## Solución de Problemas',
+          '## SoluciÃ³n de Problemas',
           '',
-          '- Error "Database does not exist" → Crear con CREATE DATABASE proyecto;',
-          '- Error "Connection refused" → Verificar PostgreSQL: sudo service postgresql status',
-          '- Error "Port already in use" → Cambiar puerto en application.properties',
+          '- Error "Database does not exist" â†’ Crear con CREATE DATABASE proyecto;',
+          '- Error "Connection refused" â†’ Verificar PostgreSQL: sudo service postgresql status',
+          '- Error "Port already in use" â†’ Cambiar puerto en application.properties',
           '',
           '## Recursos',
           '',
@@ -1449,12 +1613,12 @@ public class Application {
             : 'complemento.zip';
           
           saveAs(content, fileName);
-          console.log('✅ Proyecto Spring Boot generado:', fileName);
+          console.log('âœ… Proyecto Spring Boot generado:', fileName);
         });
       },
       'postmanCollection:pointerclick': async () => {
         try {
-          console.log('🚀 Generando colección de Postman con IA...');
+          console.log('ðŸš€ Generando colecciÃ³n de Postman con IA...');
           
           // Obtener las clases del diagrama
           const jsonJoint = this.graph.toJSON();
@@ -1481,14 +1645,14 @@ public class Application {
           });
 
           if (elementosClases.length === 0) {
-            alert('No hay clases en el diagrama para generar la colección');
+            alert('No hay clases en el diagrama para generar la colecciÃ³n');
             return;
           }
 
-          // Construir descripción de las clases para el prompt
+          // Construir descripciÃ³n de las clases para el prompt
           let descripcionClases = elementosClases.map(clase => {
             const atributos = clase.atributos.map(a => {
-              // Limpiar símbolos de visibilidad UML 2.5 (+, -, #, ~)
+              // Limpiar sÃ­mbolos de visibilidad UML 2.5 (+, -, #, ~)
               const atributoLimpio = a.titulo.replace(/^[+\-#~]\s*/, '').trim();
               return `  - ${atributoLimpio}`;
             }).join('\n');
@@ -1496,48 +1660,48 @@ public class Application {
           }).join('\n\n');
 
           // Construir el prompt para Claude
-          const promptText = `Genera una colección de Postman v2.1 en formato JSON para una API REST Spring Boot basada en las siguientes clases JPA.
+          const promptText = `Genera una colecciÃ³n de Postman v2.1 en formato JSON para una API REST Spring Boot basada en las siguientes clases JPA.
 
-Los atributos están en formato UML 2.5 (pueden tener símbolos de visibilidad como +, -, #, ~ al inicio, ignóralos).
+Los atributos estÃ¡n en formato UML 2.5 (pueden tener sÃ­mbolos de visibilidad como +, -, #, ~ al inicio, ignÃ³ralos).
 Formato: nombre : tipo
 
 CLASES DEL DIAGRAMA:
 
 ${descripcionClases}
 
-REQUISITOS DE LA COLECCIÓN:
+REQUISITOS DE LA COLECCIÃ“N:
 
-1. **Información General:**
-   - Nombre de colección: "API REST"
+1. **InformaciÃ³n General:**
+   - Nombre de colecciÃ³n: "API REST"
    - Variable: {{baseUrl}} = http://localhost:8080/api
 
 2. **Para cada clase, crea UNA carpeta con estos 5 endpoints:**
-   - GET /[clase-plural]?page=0&size=10 (Listar con paginación)
+   - GET /[clase-plural]?page=0&size=10 (Listar con paginaciÃ³n)
    - GET /[clase-plural]/{id} (Obtener por ID)
    - POST /[clase-plural] (Crear - incluye body JSON de ejemplo)
    - PUT /[clase-plural]/{id} (Actualizar - incluye body JSON de ejemplo)
    - DELETE /[clase-plural]/{id} (Eliminar)
 
 3. **Reglas de nombres:**
-   - Rutas en minúsculas y plural: "clientes", "productos", "ventas"
+   - Rutas en minÃºsculas y plural: "clientes", "productos", "ventas"
    - Variables path: {id}, {clienteId}, etc.
 
 4. **Body JSON de ejemplo:**
    - Para POST/PUT: crea un JSON con todos los atributos
-   - Usa valores realistas según el tipo de dato
-   - String → "texto ejemplo", Integer → 1, Boolean → true, Date → "2024-01-20"
+   - Usa valores realistas segÃºn el tipo de dato
+   - String â†’ "texto ejemplo", Integer â†’ 1, Boolean â†’ true, Date â†’ "2024-01-20"
    - NO incluyas el campo "id" en POST (es auto-generado)
-   - SÍ incluye "id" en PUT
+   - SÃ incluye "id" en PUT
 
 5. **Headers:**
    - Content-Type: application/json (en todos los requests)
 
 6. **NO incluyas:**
-   - El campo "response" (omite ejemplos de respuesta para reducir tamaño)
+   - El campo "response" (omite ejemplos de respuesta para reducir tamaÃ±o)
    - Explicaciones adicionales
 
 FORMATO DE RESPUESTA:
-Responde ÚNICAMENTE con el JSON válido de Postman v2.1, sin markdown, sin \`\`\`json, sin explicaciones.
+Responde ÃšNICAMENTE con el JSON vÃ¡lido de Postman v2.1, sin markdown, sin \`\`\`json, sin explicaciones.
 Estructura compacta pero legible.`;
 
           // Llamar a la API de IA
@@ -1546,7 +1710,7 @@ Estructura compacta pero legible.`;
           }).toPromise();
 
           if (!response || !response.ok) {
-            throw new Error('Error al generar la colección con IA');
+            throw new Error('Error al generar la colecciÃ³n con IA');
           }
 
           // Extraer el JSON de la respuesta
@@ -1559,13 +1723,13 @@ Estructura compacta pero legible.`;
             collectionJson = JSON.parse(collectionJson);
           }
 
-          // Solicitar nombre de la colección
-          const nombreColeccion = window.prompt('Ingrese el nombre de la colección:', 'API-REST-Collection');
+          // Solicitar nombre de la colecciÃ³n
+          const nombreColeccion = window.prompt('Ingrese el nombre de la colecciÃ³n:', 'API-REST-Collection');
           const nombreFinal = nombreColeccion && nombreColeccion.trim() !== '' 
             ? nombreColeccion.trim() 
             : 'API-REST-Collection';
 
-          // Actualizar el nombre interno de la colección (el que se ve en Postman)
+          // Actualizar el nombre interno de la colecciÃ³n (el que se ve en Postman)
           if (collectionJson && collectionJson.info) {
             collectionJson.info.name = nombreFinal;
           }
@@ -1579,17 +1743,17 @@ Estructura compacta pero legible.`;
           });
           saveAs(blob, fileName);
           
-          console.log('✅ Colección de Postman generada:', fileName);
-          alert('¡Colección de Postman generada exitosamente! Puedes importarla en Postman.');
+          console.log('âœ… ColecciÃ³n de Postman generada:', fileName);
+          alert('Â¡ColecciÃ³n de Postman generada exitosamente! Puedes importarla en Postman.');
           
         } catch (error) {
-          console.error('❌ Error al generar colección de Postman:', error);
-          alert('Error al generar la colección de Postman. Revisa la consola para más detalles.');
+          console.error('âŒ Error al generar colecciÃ³n de Postman:', error);
+          alert('Error al generar la colecciÃ³n de Postman. Revisa la consola para mÃ¡s detalles.');
         }
       },
       'exportarSQL:pointerclick': async () => {
         try {
-          console.log('🗄️ Generando schema SQL con IA...');
+          console.log('ðŸ—„ï¸ Generando schema SQL con IA...');
           
           // Obtener las clases y relaciones del diagrama
           const jsonJoint = this.graph.toJSON();
@@ -1614,7 +1778,7 @@ Estructura compacta pero legible.`;
                 elementosClases.push(elementoClase);
               }
             } else if (cell.type == 'standard.Link') {
-              // Extraer información de la relación
+              // Extraer informaciÃ³n de la relaciÃ³n
               const labels = cell.labels || [];
               const cardinalidadOrigen = labels.find((l: any) => l.position?.distance < 0.5)?.attrs?.text?.text || '1';
               const cardinalidadDestino = labels.find((l: any) => l.position?.distance >= 0.5)?.attrs?.text?.text || '1';
@@ -1637,7 +1801,7 @@ Estructura compacta pero legible.`;
             return;
           }
 
-          // Construir descripción detallada para Claude
+          // Construir descripciÃ³n detallada para Claude
           let descripcionClases = elementosClases.map(clase => {
             const atributos = clase.atributos.map(a => {
               const atributoLimpio = a.titulo.replace(/^[+\-#~]\s*/, '').trim();
@@ -1646,7 +1810,7 @@ Estructura compacta pero legible.`;
             return `Clase: ${clase.titulo}\nAtributos:\n${atributos}`;
           }).join('\n\n');
 
-          // Construir descripción de relaciones
+          // Construir descripciÃ³n de relaciones
           let descripcionRelaciones = elementosRelaciones.map(rel => {
             const origenClase = elementosClases.find(c => c.id === rel.origen);
             const destinoClase = elementosClases.find(c => c.id === rel.destino);
@@ -1669,42 +1833,42 @@ ${descripcionRelaciones}
 **REQUISITOS DEL SCHEMA (schema.sql):**
 
 1. **Tablas:**
-   - Nombre en minúsculas y plural: clientes, productos, ventas
+   - Nombre en minÃºsculas y plural: clientes, productos, ventas
    - Columna id SERIAL PRIMARY KEY en todas las tablas
    - Tipos PostgreSQL: INTEGER, VARCHAR(255), TEXT, BOOLEAN, DATE, TIMESTAMP, DECIMAL(10,2)
-   - Mapeo de tipos UML → PostgreSQL:
-     * Integer → INTEGER
-     * String → VARCHAR(255)
-     * Boolean → BOOLEAN
-     * Date → DATE
-     * DateTime → TIMESTAMP
-     * Double/Float → DECIMAL(10,2)
+   - Mapeo de tipos UML â†’ PostgreSQL:
+     * Integer â†’ INTEGER
+     * String â†’ VARCHAR(255)
+     * Boolean â†’ BOOLEAN
+     * Date â†’ DATE
+     * DateTime â†’ TIMESTAMP
+     * Double/Float â†’ DECIMAL(10,2)
 
-2. **Relaciones según cardinalidad:**
-   - 1:1 (COMPOSICION/ASOCIACION) → Foreign key con UNIQUE
-   - 1:N (ASOCIACION) → Foreign key en tabla "muchos"
-   - N:M (ASOCIACION) → Tabla intermedia con dos foreign keys
-   - HERENCIA → Foreign key a tabla padre
+2. **Relaciones segÃºn cardinalidad:**
+   - 1:1 (COMPOSICION/ASOCIACION) â†’ Foreign key con UNIQUE
+   - 1:N (ASOCIACION) â†’ Foreign key en tabla "muchos"
+   - N:M (ASOCIACION) â†’ Tabla intermedia con dos foreign keys
+   - HERENCIA â†’ Foreign key a tabla padre
 
 3. **Constraints:**
    - NOT NULL en campos obligatorios
    - UNIQUE donde corresponda
-   - ON DELETE CASCADE/SET NULL según tipo de relación
+   - ON DELETE CASCADE/SET NULL segÃºn tipo de relaciÃ³n
    - CHECK constraints para validaciones
 
-4. **Índices:**
+4. **Ãndices:**
    - CREATE INDEX en foreign keys
    - CREATE INDEX en campos frecuentemente consultados
 
 **REQUISITOS DEL SEED (seed.sql):**
 
 1. **Datos de prueba realistas:**
-   - Mínimo 5 registros por tabla
+   - MÃ­nimo 5 registros por tabla
    - Respetar foreign keys (insertar padres antes que hijos)
    - Valores coherentes y realistas
    - Fechas actuales o recientes
 
-2. **Orden de inserción:**
+2. **Orden de inserciÃ³n:**
    - Tablas sin dependencias primero
    - Luego tablas con foreign keys
    - Finalmente tablas intermedias (N:M)
@@ -1714,7 +1878,7 @@ ${descripcionRelaciones}
 Genera DOS archivos SQL separados por comentarios:
 
 -- SCHEMA.SQL
--- Creación de tablas con relaciones
+-- CreaciÃ³n de tablas con relaciones
 
 DROP TABLE IF EXISTS [tablas] CASCADE;
 
@@ -1726,7 +1890,7 @@ CREATE TABLE ... ;
 INSERT INTO ... ;
 
 IMPORTANTE:
-- SQL válido para PostgreSQL
+- SQL vÃ¡lido para PostgreSQL
 - Sin markdown, sin \`\`\`sql
 - Comentarios descriptivos
 - Script ejecutable directamente`;
@@ -1758,13 +1922,13 @@ IMPORTANTE:
           // Descargar ZIP
           zip.generateAsync({ type: 'blob' }).then((content) => {
             saveAs(content, `${nombreFinal}-postgresql.zip`);
-            console.log('✅ Archivos SQL generados:', `${nombreFinal}-postgresql.zip`);
-            alert('¡Archivos SQL generados exitosamente!\n\nContiene:\n- schema.sql (estructura de tablas)\n- seed.sql (datos de prueba)');
+            console.log('âœ… Archivos SQL generados:', `${nombreFinal}-postgresql.zip`);
+            alert('Â¡Archivos SQL generados exitosamente!\n\nContiene:\n- schema.sql (estructura de tablas)\n- seed.sql (datos de prueba)');
           });
           
         } catch (error) {
-          console.error('❌ Error al generar SQL:', error);
-          alert('Error al generar archivos SQL. Revisa la consola para más detalles.');
+          console.error('âŒ Error al generar SQL:', error);
+          alert('Error al generar archivos SQL. Revisa la consola para mÃ¡s detalles.');
         }
       },
       'jsonExportar:pointerclick': () => {
@@ -1836,8 +2000,14 @@ IMPORTANTE:
         let linkOcupados: ElementoLink[] = [];
         let diagramElement: string[] = [];
         let connectorsXML: ConnectorXML[] = [];
+        
+        console.log(`ðŸ” EXPORTACIÃ“N XML - Total de cells: ${jsonJoint.cells.length}`);
+        
         jsonJoint.cells.forEach((cell: any) => {
+          console.log(`ðŸ” Cell tipo: ${cell.type}, id: ${cell.id}`);
+          
           if (cell.type == 'standard.HeaderedRectangle') {
+            console.log(`ðŸ“¦ Clase encontrada: ${cell.attrs.headerText.text}`);
             let elementoClase: ElementoClase = {
               titulo: cell.attrs.headerText.text,
               id: cell.id,
@@ -1846,10 +2016,13 @@ IMPORTANTE:
               atributos: this.convertirCadenaALista(
                 cell.attrs.bodyText.textWrap.text
               ),
+              metodos: this.convertirCadenaAMetodos(
+                cell.attrs.bodyText.textWrap.text
+              ),
               color: cell.attrs.body.stroke,
             };
             elementosClases.push(elementoClase);
-          } else if (cell.type == 'app.Link') {
+          } else if (cell.type == 'app.Link' || cell.type == 'standard.Link') {
             let cabezeraOrigen: ElementoCabezera = {
               id: cell.source.id,
               tipo: cell.attrs?.line?.sourceMarker?.d ?? 'M 0 0 0 0',
@@ -1883,12 +2056,12 @@ IMPORTANTE:
 
         let connectors: string = '<connectors>';
         for (let elementoLink of elementosLinks) {
-          // Verificar si el elementoLink ya está en linkOcupados
+          // Verificar si el elementoLink ya estÃ¡ en linkOcupados
           if (linkOcupados.some((link) => link.id === elementoLink.id)) {
-            continue; // Saltar a la siguiente iteración si el link ya está ocupado
+            continue; // Saltar a la siguiente iteraciÃ³n si el link ya estÃ¡ ocupado
           }
           
-          // Verificar si es una asociación muchos-a-muchos (con clase intermedia)
+          // Verificar si es una asociaciÃ³n muchos-a-muchos (con clase intermedia)
           // Solo procesar como M:N si alguna de las clases conectadas tiene "_" en el nombre
           if (elementoLink.atributos.length == 1) {
             // Buscar las clases origen y destino
@@ -1899,7 +2072,7 @@ IMPORTANTE:
             const esAsociacionMuchosAMuchos = claseOrigen?.titulo.includes('_') || claseDestino?.titulo.includes('_');
             
             if (esAsociacionMuchosAMuchos) {
-              // PROCESAR COMO ASOCIACIÓN MUCHOS-A-MUCHOS
+              // PROCESAR COMO ASOCIACIÃ“N MUCHOS-A-MUCHOS
               let idUnificado: string = uuidv4();
 
               // READ : CLASE_A LINK CLASE_A_B LINK CLASE_B
@@ -1915,7 +2088,7 @@ IMPORTANTE:
               
               // Validar que la clase final sea diferente de la intermedia
               if (claseF.id === claseOxClaseI[1].id) {
-                console.warn('No se encontró la clase final para la asociación M:N, se omitirá');
+                console.warn('No se encontrÃ³ la clase final para la asociaciÃ³n M:N, se omitirÃ¡');
                 continue;
               }
               
@@ -1927,9 +2100,9 @@ IMPORTANTE:
                 elementosLinks
               );
 
-              // Validar que se encontró el linkTarget
+              // Validar que se encontrÃ³ el linkTarget
               if (!linkTarget) {
-                console.error('No se encontró linkTarget para la clase intermedia:', claseOxClaseI[1].titulo, 'y clase final:', claseF.titulo);
+                console.error('No se encontrÃ³ linkTarget para la clase intermedia:', claseOxClaseI[1].titulo, 'y clase final:', claseF.titulo);
                 continue;
               }
 
@@ -1959,7 +2132,7 @@ IMPORTANTE:
                 intermedia: claseOxClaseI[1].id,
               });
             } else {
-              // PROCESAR COMO ASOCIACIÓN NORMAL (1 multiplicidad)
+              // PROCESAR COMO ASOCIACIÃ“N NORMAL (1 multiplicidad)
               connectors += `
               <connector xmi:idref="${elementoLink.id}">
                 <source xmi:idref="${elementoLink.origen.id}">
@@ -1985,80 +2158,22 @@ IMPORTANTE:
               });
             }
           } else {
-            if (elementoLink.destino.normal == 'ASOCIACION') {
-              connectors += `
-              <connector xmi:idref="${elementoLink.id}">
-                <source xmi:idref="${elementoLink.origen.id}">
-                  <type multiplicity="${
-                    elementoLink.atributos[0] ?? ''
-                  }" aggregation="none" containment="Unspecified" />
-                </source>
-                <target xmi:idref="${elementoLink.destino.id}">
-                  <type multiplicity="${
-                    elementoLink.atributos[1] ?? ''
-                  }" aggregation="none" containment="Unspecified" />
-                </target>
-                <properties ea_type="Association" direction="Unspecified" />
-                <labels lb="${elementoLink.atributos[0] ?? ''}" rb="${
-                elementoLink.atributos[1] ?? ''
-              }"/>
-      				  <extendedProperties />
-              </connector>
-              `;
-
-              connectorsXML.push({
-                id: elementoLink.id,
-                origen: elementoLink.origen.id,
-                destino: elementoLink.destino.id,
-                destinoType: 'none',
-                properties: 'Association',
-                intermedia: '',
-              });
-            }
-
-            if (elementoLink.destino.normal == 'HERENCIA') {
-              connectors += `
-              <connector xmi:idref="${elementoLink.id}">
-                <source xmi:idref="${elementoLink.origen.id}">
-                  <type multiplicity="${
-                    elementoLink.atributos[0] ?? ''
-                  }" aggregation="none" containment="Unspecified" />
-                </source>
-                <target xmi:idref="${elementoLink.destino.id}">
-                  <type multiplicity="${
-                    elementoLink.atributos[1] ?? ''
-                  }" aggregation="none" containment="Unspecified" />
-                </target>
-                <properties ea_type="Generalization"/>
-                <labels lb="${elementoLink.atributos[0] ?? ''}" rb="${
-                elementoLink.atributos[1] ?? ''
-              }"/>
-        				<extendedProperties />
-              </connector>
-              `;
-
-              connectorsXML.push({
-                id: elementoLink.id,
-                origen: elementoLink.origen.id,
-                destino: elementoLink.destino.id,
-                destinoType: 'none',
-                properties: 'Generalization',
-                intermedia: 'esG',
-              });
-            }
-
-            if (elementoLink.destino.normal == 'COMPOSICION') {
+            // Verificar COMPOSICION (puede estar en origen o destino)
+            if (elementoLink.destino.normal == 'COMPOSICION' || elementoLink.origen.normal == 'COMPOSICION') {
+              // Determinar en quÃ© lado estÃ¡ el diamante
+              const compositEnSource = elementoLink.origen.normal == 'COMPOSICION';
+              
               connectors += `
                 <connector xmi:idref="${elementoLink.id}">
                   <source xmi:idref="${elementoLink.origen.id}">
                     <type multiplicity="${
                       elementoLink.atributos[0] ?? ''
-                    }" aggregation="none" containment="Unspecified" />
+                    }" aggregation="${compositEnSource ? 'composite' : 'none'}" containment="Unspecified" />
                   </source>
                   <target  xmi:idref="${elementoLink.destino.id}">
                     <type multiplicity="${
                       elementoLink.atributos[1] ?? ''
-                    }" aggregation="composite" containment="Unspecified" />
+                    }" aggregation="${compositEnSource ? 'none' : 'composite'}" containment="Unspecified" />
                   </target>
                   <properties ea_type="Aggregation" />
                   <labels lb="${elementoLink.atributos[0] ?? ''}" rb="${
@@ -2077,19 +2192,22 @@ IMPORTANTE:
                 intermedia: '',
               });
             }
-
-            if (elementoLink.destino.normal == 'AGREGACION') {
+            // Verificar AGREGACION
+            else if (elementoLink.destino.normal == 'AGREGACION' || elementoLink.origen.normal == 'AGREGACION') {
+              // Determinar en quÃ© lado estÃ¡ el diamante
+              const sharedEnSource = elementoLink.origen.normal == 'AGREGACION';
+              
               connectors += `
                <connector xmi:idref="${elementoLink.id}">
                   <source xmi:idref="${elementoLink.origen.id}">
                     <type multiplicity="${
                       elementoLink.atributos[0] ?? ''
-                    }" aggregation="none" containment="Unspecified" />
+                    }" aggregation="${sharedEnSource ? 'shared' : 'none'}" containment="Unspecified" />
                   </source>
                   <target  xmi:idref="${elementoLink.destino.id}">
                     <type multiplicity="${
                       elementoLink.atributos[1] ?? ''
-                    }" aggregation="shared" containment="Unspecified" />
+                    }" aggregation="${sharedEnSource ? 'none' : 'shared'}" containment="Unspecified" />
                   </target>
                   <properties ea_type="Aggregation" />
                   <labels lb="${elementoLink.atributos[0] ?? ''}" rb="${
@@ -2108,25 +2226,59 @@ IMPORTANTE:
                 intermedia: '',
               });
             }
+            // Verificar HERENCIA
+            else if (elementoLink.destino.normal == 'HERENCIA' || elementoLink.origen.normal == 'HERENCIA') {
+              // Detectar si el marcador (triÃ¡ngulo) estÃ¡ en origen o destino
+              const marcadorEnOrigen = elementoLink.origen.normal == 'HERENCIA';
+              // Si marcador en origen: intercambiar source/target para que la flecha apunte correctamente
+              const sourceId = marcadorEnOrigen ? elementoLink.destino.id : elementoLink.origen.id;
+              const targetId = marcadorEnOrigen ? elementoLink.origen.id : elementoLink.destino.id;
+              const sourceMultiplicity = marcadorEnOrigen ? (elementoLink.atributos[1] ?? '') : (elementoLink.atributos[0] ?? '');
+              const targetMultiplicity = marcadorEnOrigen ? (elementoLink.atributos[0] ?? '') : (elementoLink.atributos[1] ?? '');
+              
+              connectors += `
+              <connector xmi:idref="${elementoLink.id}">
+                <source xmi:idref="${sourceId}">
+                  <type multiplicity="${sourceMultiplicity}" aggregation="none" containment="Unspecified" />
+                </source>
+                <target  xmi:idref="${targetId}">
+                  <type multiplicity="${targetMultiplicity}" aggregation="none" containment="Unspecified" />
+                </target>
+                <properties ea_type="Generalization"/>
+                <labels lb="${sourceMultiplicity}" rb="${targetMultiplicity}"/>
+        				<extendedProperties />
+              </connector>
+              `;
 
-            if (elementoLink.destino.normal == 'DEPENDENCIA') {
-              console.log('entro a generar un connector con dependencia');
+              connectorsXML.push({
+                id: elementoLink.id,
+                origen: elementoLink.origen.id,
+                destino: elementoLink.destino.id,
+                destinoType: 'none',
+                properties: 'Generalization',
+                intermedia: 'esG',
+              });
+            }
+            // Verificar DEPENDENCIA
+            else if (elementoLink.destino.normal == 'DEPENDENCIA' || elementoLink.origen.normal == 'DEPENDENCIA') {
+              // Detectar si el marcador (flecha) estÃ¡ en origen o destino
+              const marcadorEnOrigen = elementoLink.origen.normal == 'DEPENDENCIA';
+              // Si marcador en origen: intercambiar source/target para que la flecha apunte correctamente
+              const sourceId = marcadorEnOrigen ? elementoLink.destino.id : elementoLink.origen.id;
+              const targetId = marcadorEnOrigen ? elementoLink.origen.id : elementoLink.destino.id;
+              const sourceMultiplicity = marcadorEnOrigen ? (elementoLink.atributos[1] ?? '') : (elementoLink.atributos[0] ?? '');
+              const targetMultiplicity = marcadorEnOrigen ? (elementoLink.atributos[0] ?? '') : (elementoLink.atributos[1] ?? '');
+              
               connectors += `
                 <connector xmi:idref="${elementoLink.id}">
-                  <source xmi:idref="${elementoLink.origen.id}">
-                    <type multiplicity="${
-                      elementoLink.atributos[0] ?? ''
-                    }" aggregation="none" containment="Unspecified" />
+                  <source xmi:idref="${sourceId}">
+                    <type multiplicity="${sourceMultiplicity}" aggregation="none" containment="Unspecified" />
                   </source>
-                  <target  xmi:idref="${elementoLink.destino.id}">
-                    <type multiplicity="${
-                      elementoLink.atributos[1] ?? ''
-                    }" aggregation="none" containment="Unspecified" />
+                  <target  xmi:idref="${targetId}">
+                    <type multiplicity="${targetMultiplicity}" aggregation="none" containment="Unspecified" />
                   </target>
-                  <properties ea_type="Dependency" direction="Source -&gt; Destination"/>
-                  <labels lb="${elementoLink.atributos[0] ?? ''}" rb="${
-                elementoLink.atributos[1] ?? ''
-              }"/>
+                  <properties ea_type="Dependency" direction="Unspecified" />
+                  <labels lb="${sourceMultiplicity}" rb="${targetMultiplicity}"/>
                   <extendedProperties />
                 </connector>
               `;
@@ -2137,6 +2289,39 @@ IMPORTANTE:
                 destino: elementoLink.destino.id,
                 destinoType: 'none',
                 properties: 'Dependency',
+                intermedia: '',
+              });
+            }
+            // Por defecto: ASOCIACION
+            else if (elementoLink.destino.normal == 'ASOCIACION' || elementoLink.origen.normal == 'ASOCIACION') {
+              // Detectar si el marcador (flecha) estÃ¡ en origen o destino
+              const marcadorEnOrigen = elementoLink.origen.normal == 'ASOCIACION';
+              // Si marcador en origen: intercambiar source/target para que la flecha apunte correctamente
+              const sourceId = marcadorEnOrigen ? elementoLink.destino.id : elementoLink.origen.id;
+              const targetId = marcadorEnOrigen ? elementoLink.origen.id : elementoLink.destino.id;
+              const sourceMultiplicity = marcadorEnOrigen ? (elementoLink.atributos[1] ?? '') : (elementoLink.atributos[0] ?? '');
+              const targetMultiplicity = marcadorEnOrigen ? (elementoLink.atributos[0] ?? '') : (elementoLink.atributos[1] ?? '');
+              
+              connectors += `
+              <connector xmi:idref="${elementoLink.id}">
+                <source xmi:idref="${sourceId}">
+                  <type multiplicity="${sourceMultiplicity}" aggregation="none" containment="Unspecified" />
+                </source>
+                <target xmi:idref="${targetId}">
+                  <type multiplicity="${targetMultiplicity}" aggregation="none" containment="Unspecified" />
+                </target>
+                <properties ea_type="Association" direction="Unspecified" />
+                <labels lb="${sourceMultiplicity}" rb="${targetMultiplicity}"/>
+      				  <extendedProperties />
+              </connector>
+              `;
+
+              connectorsXML.push({
+                id: elementoLink.id,
+                origen: elementoLink.origen.id,
+                destino: elementoLink.destino.id,
+                destinoType: 'none',
+                properties: 'Association',
                 intermedia: '',
               });
             }
@@ -2154,14 +2339,31 @@ IMPORTANTE:
         <attributes>
          `;
           for (let atributo of elementoClase.atributos) {
+            // Extraer nombre y tipo del atributo formato: -nombre:tipo
+            const atributoPartes = atributo.titulo.replace(/^-/, '').split(':');
+            const nombreAtributo = atributoPartes[0] || atributo.titulo;
+            const tipoAtributo = atributoPartes[1] || 'String';
+            
             elements += `
-            <attribute xmi:idref="${atributo.id}" name="${atributo.titulo}" scope="Private">
-						    <properties />
+            <attribute xmi:idref="${atributo.id}" name="${nombreAtributo}" scope="Private">
+						    <properties type="${tipoAtributo}" />
 					  </attribute>
             `;
           }
           elements += `
           </attributes>
+          <operations>
+         `;
+          // Exportar mÃ©todos
+          if (elementoClase.metodos && elementoClase.metodos.length > 0) {
+            for (let metodo of elementoClase.metodos) {
+              elements += `
+            <operation xmi:idref="${metodo.id}" name="${metodo.nombre}" scope="Public" />
+              `;
+            }
+          }
+          elements += `
+          </operations>
           <links>
           `;
           for (let connector of connectorsXML) {
@@ -2219,7 +2421,7 @@ IMPORTANTE:
               connector.destinoType == 'none' &&
               connector.intermedia == ''
             ) {
-              console.log('entro crear link en elmentos para dependecia');
+              // LOG REMOVED
               elements += `
             <Dependency xmi:id="${connector.id}"
 						start="${connector.origen}" end="${connector.destino}" />
@@ -2293,9 +2495,9 @@ IMPORTANTE:
           `;
         }
         for (let elementoLink of diagramElement) {
-          // Verificar si el elementoLink ya está en linkOcupados
+          // Verificar si el elementoLink ya estÃ¡ en linkOcupados
           // if (linkOcupados.some((link) => link.id === elementoLink.id)) {
-          //   continue; // Saltar a la siguiente iteración si el link ya está ocupado
+          //   continue; // Saltar a la siguiente iteraciÃ³n si el link ya estÃ¡ ocupado
           // }
           antepenultimo += `
             <element
@@ -2347,47 +2549,47 @@ IMPORTANTE:
           `- \`${nombreBase}.xmi\` - Diagrama de clases en formato XMI 2.5`,
           '- `README.md` - Este archivo de instrucciones',
           '',
-          '## Cómo Abrir en Enterprise Architect',
+          '## CÃ³mo Abrir en Enterprise Architect',
           '',
-          '### Opción 1: Importar XMI',
+          '### OpciÃ³n 1: Importar XMI',
           '1. Abre Enterprise Architect',
-          '2. Menu: **File → Import Model from XMI...**',
+          '2. Menu: **File â†’ Import Model from XMI...**',
           '3. Selecciona el archivo `' + nombreBase + '.xmi`',
           '4. Elige el paquete destino o crea uno nuevo',
           '5. Click en **Import**',
           '',
-          '### Opción 2: Arrastrar y Soltar',
+          '### OpciÃ³n 2: Arrastrar y Soltar',
           '1. Abre Enterprise Architect',
           '2. En el **Project Browser**, selecciona el paquete donde quieres importar',
           '3. Arrastra el archivo `' + nombreBase + '.xmi` al Project Browser',
           '',
-          '## Cómo Abrir en la Aplicación Web',
+          '## CÃ³mo Abrir en la AplicaciÃ³n Web',
           '',
-          '1. Ve a la aplicación web: http://localhost:4200',
-          '2. Click en el botón **"Importar XML"** en la toolbar',
+          '1. Ve a la aplicaciÃ³n web: http://localhost:4200',
+          '2. Click en el botÃ³n **"Importar XML"** en la toolbar',
           '3. Selecciona el archivo `' + nombreBase + '.xmi`',
-          '4. El diagrama se cargará automáticamente',
+          '4. El diagrama se cargarÃ¡ automÃ¡ticamente',
           '',
-          '## Especificaciones Técnicas',
+          '## Especificaciones TÃ©cnicas',
           '',
           '- **Formato**: XMI 2.5 (XML Metadata Interchange)',
-          '- **Versión UML**: 2.5.1',
+          '- **VersiÃ³n UML**: 2.5.1',
           '- **Compatibilidad**: Enterprise Architect 6.5+, Visual Paradigm, ArgoUML, StarUML',
           '- **Encoding**: windows-1252',
           '',
           '## Estructura del Diagrama',
           '',
           '### Clases',
-          '- Cada clase tiene un ID único (XMI)',
+          '- Cada clase tiene un ID Ãºnico (XMI)',
           '- Atributos con visibilidad UML 2.5 (+, -, #, ~)',
-          '- Métodos con parámetros y tipos de retorno',
+          '- MÃ©todos con parÃ¡metros y tipos de retorno',
           '',
           '### Relaciones',
-          '- **Asociación**: Relación estándar entre clases',
-          '- **Composición**: Agregación fuerte (diamante relleno)',
-          '- **Agregación**: Agregación débil (diamante vacío)',
-          '- **Herencia**: Generalización (flecha vacía)',
-          '- **Dependencia**: Relación de uso (flecha punteada)',
+          '- **AsociaciÃ³n**: RelaciÃ³n estÃ¡ndar entre clases',
+          '- **ComposiciÃ³n**: AgregaciÃ³n fuerte (diamante relleno)',
+          '- **AgregaciÃ³n**: AgregaciÃ³n dÃ©bil (diamante vacÃ­o)',
+          '- **Herencia**: GeneralizaciÃ³n (flecha vacÃ­a)',
+          '- **Dependencia**: RelaciÃ³n de uso (flecha punteada)',
           '',
           '### Cardinalidad',
           '- Se especifica en ambos extremos de las relaciones',
@@ -2395,28 +2597,28 @@ IMPORTANTE:
           '',
           '## Notas Importantes',
           '',
-          '- Las **clases intermedias** (relaciones N:M) se identifican con guión bajo en el nombre',
-          '- Las **coordenadas** de posición se preservan en el elemento `<diagram>`',
+          '- Las **clases intermedias** (relaciones N:M) se identifican con guiÃ³n bajo en el nombre',
+          '- Las **coordenadas** de posiciÃ³n se preservan en el elemento `<diagram>`',
           '- Los **colores** de las clases se mantienen en el atributo `color`',
           '',
-          '## Solución de Problemas',
+          '## SoluciÃ³n de Problemas',
           '',
           '### "No se puede importar el archivo"',
-          '- Verifica que el archivo no esté corrupto',
-          '- Asegúrate de tener Enterprise Architect 6.5 o superior',
+          '- Verifica que el archivo no estÃ© corrupto',
+          '- AsegÃºrate de tener Enterprise Architect 6.5 o superior',
           '- Intenta abrirlo con un editor de texto para validar el XML',
           '',
           '### "Las relaciones no se muestran correctamente"',
           '- Verifica que todas las clases referenciadas existan',
           '- Revisa que los IDs de origen y destino coincidan',
           '',
-          '### "Los atributos aparecen vacíos"',
+          '### "Los atributos aparecen vacÃ­os"',
           '- El formato original usa `name:type` separado por dos puntos',
           '- Algunos editores pueden requerir formato diferente',
           '',
-          '## Más Información',
+          '## MÃ¡s InformaciÃ³n',
           '',
-          '- Documentación UML 2.5: https://www.omg.org/spec/UML/2.5.1',
+          '- DocumentaciÃ³n UML 2.5: https://www.omg.org/spec/UML/2.5.1',
           '- XMI Specification: https://www.omg.org/spec/XMI/2.5.1',
           '- Enterprise Architect: https://sparxsystems.com',
           '',
@@ -2432,8 +2634,8 @@ IMPORTANTE:
         // Generar y descargar ZIP
         zip.generateAsync({ type: 'blob' }).then((content) => {
           saveAs(content, `${nombreBase}-uml.zip`);
-          console.log('✅ Diagrama UML exportado:', `${nombreBase}-uml.zip`);
-          alert(`¡Diagrama exportado exitosamente!\n\nArchivo: ${nombreBase}-uml.zip\n\nContiene:\n- ${nombreBase}.xmi (diagrama UML 2.5)\n- README.md (instrucciones de uso)`);
+          console.log('âœ… Diagrama UML exportado:', `${nombreBase}-uml.zip`);
+          alert(`Â¡Diagrama exportado exitosamente!\n\nArchivo: ${nombreBase}-uml.zip\n\nContiene:\n- ${nombreBase}.xmi (diagrama UML 2.5)\n- README.md (instrucciones de uso)`);
         });
       },
 
@@ -2522,9 +2724,9 @@ public class ${nombreClase}Servicio {
     public String guardar(${nombreClase} ${nombreClase.toLowerCase()}) {
         try {
             repositorio.save(${nombreClase.toLowerCase()});
-            return "${nombreClase} guardado con éxito.";
+            return "${nombreClase} guardado con Ã©xito.";
         } catch (Exception e) {
-            // Manejar la excepción y retornar un mensaje de error
+            // Manejar la excepciÃ³n y retornar un mensaje de error
             return "Error al guardar ${nombreClase}: " + e.getMessage();
         }
     }
@@ -2564,7 +2766,7 @@ public class ${nombreClase}Servicio {
                   .join('\n                ')}
 
                 repositorio.save(objetoExistente);
-                return "${nombreClase} actualizado con éxito.";
+                return "${nombreClase} actualizado con Ã©xito.";
             } else {
                 return "${nombreClase} no encontrado.";
             }
@@ -2578,9 +2780,9 @@ public class ${nombreClase}Servicio {
         if (repositorio.existsById(id)) {
             try {
                 repositorio.deleteById(id);
-                return "${nombreClase} eliminado con éxito.";
+                return "${nombreClase} eliminado con Ã©xito.";
             } catch (Exception e) {
-                // Manejar la excepción y retornar un mensaje de error
+                // Manejar la excepciÃ³n y retornar un mensaje de error
                 return "Error al eliminar ${nombreClase}: " + e.getMessage();
             }
         } else {
@@ -2656,7 +2858,7 @@ public interface ${nombreClase}Repositorio extends JpaRepository<${nombreClase},
 `;
   }
 
-  // Método para extraer el nombre de la clase JPA
+  // MÃ©todo para extraer el nombre de la clase JPA
   extraerNombreClase(claseJPA: string): string {
     const nombreClaseRegex = /public class (\w+)/;
     const resultado = claseJPA.match(nombreClaseRegex);
@@ -2829,7 +3031,7 @@ public interface ${nombreClase}Repositorio extends JpaRepository<${nombreClase},
     // Formato UML 2.5: [+|-|#|~] nombre : tipo
     const atributoTrim = atributo.trim();
     
-    // Remover símbolos de visibilidad (+, -, #, ~)
+    // Remover sÃ­mbolos de visibilidad (+, -, #, ~)
     const sinVisibilidad = atributoTrim.replace(/^[+\-#~]\s*/, '');
     
     // Separar nombre y tipo por :

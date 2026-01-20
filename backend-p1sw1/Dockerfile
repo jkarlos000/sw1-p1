@@ -27,6 +27,6 @@ EXPOSE 3000
 # Variables de entorno
 ENV NODE_ENV=production
 
-# Ejecutar directamente con ts-node (sin compilar a JS)
-CMD ["node", "--require", "ts-node/register", "index.ts"]
+# Ejecutar directamente con ts-node usando npx
+CMD ["npx", "-y", "ts-node", "index.ts"]
 

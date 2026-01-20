@@ -18,6 +18,7 @@ import pluralize from 'pluralize';
 import { v4 as uuidv4 } from 'uuid';
 import { DOMParser } from 'xmldom';
 import { environment } from '../../../environments/environment';
+import { ConfigService } from '../../common/services/config.service';
 import {
   AtributoClase,
   ConnectorXML,
@@ -39,7 +40,7 @@ import { ToolbarService } from './toolbar.service';
 
 class KitchenSinkService {
   public viewModalQR: boolean = false;
-  private apiUrl = environment.apiUrl;
+  private get apiUrl() { return this.configService.apiUrl; }
   public http: HttpClient;
   el: HTMLElement;
 
@@ -62,6 +63,8 @@ class KitchenSinkService {
   // Callback para limpiar diagrama y sincronizar
   onClearDiagram?: () => void;
 
+  configService: ConfigService;
+
   constructor(
     el: HTMLElement,
     stencilService: StencilService,
@@ -69,9 +72,11 @@ class KitchenSinkService {
     inspectorService: InspectorService,
     haloService: HaloService,
     keyboardService: KeyboardService,
-    http: HttpClient
+    http: HttpClient,
+    configService: ConfigService
   ) {
     this.http = http;
+    this.configService = configService;
     this.el = el;
     // apply current joint js theme
     const view = new joint.mvc.View({ el });

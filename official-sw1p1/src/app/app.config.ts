@@ -1,4 +1,4 @@
-import { ApplicationConfig, importProvidersFrom } from '@angular/core';
+import { APP_INITIALIZER, ApplicationConfig, importProvidersFrom } from '@angular/core';
 import {
   ExtraOptions,
   provideRouter,
@@ -8,15 +8,24 @@ import {
 
 import { provideHttpClient } from '@angular/common/http';
 import { SocketIoConfig, SocketIoModule } from 'ngx-socket-io';
-import { environment } from '../environments/environment';
 import { routes } from './app.routes';
+import { ConfigService } from './common/services/config.service';
 
 const routerOptions: ExtraOptions = {
   anchorScrolling: 'enabled',
   scrollPositionRestoration: 'enabled',
 };
 
-const config: SocketIoConfig = { url: environment.wsUrl, options: {} };
+// Configuración temporal para Socket.IO
+// Se actualizará dinámicamente cuando se cargue config.json
+const config: SocketIoConfig = { url: 'http://localhost:3000', options: {} };
+
+/**
+ * Factory para inicializar la configuración antes de que arranque la app
+ */
+export function initializeApp(configService: ConfigService) {
+  return () => configService.loadConfig();
+}
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -27,5 +36,11 @@ export const appConfig: ApplicationConfig = {
     ),
     provideHttpClient(),
     importProvidersFrom(SocketIoModule.forRoot(config)),
+    {
+      provide: APP_INITIALIZER,
+      useFactory: initializeApp,
+      deps: [ConfigService],
+      multi: true
+    }
   ],
 };

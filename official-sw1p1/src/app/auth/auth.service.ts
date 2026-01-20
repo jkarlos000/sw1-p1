@@ -3,6 +3,7 @@ import { Injectable, signal } from '@angular/core';
 import { map, Observable } from 'rxjs';
 import { environment } from '../../environments/environment.prod';
 import { WebsocketService } from '../common/services/websocket.service';
+import { ConfigService } from '../common/services/config.service';
 
 export interface UserAuth {
   id: number;
@@ -25,12 +26,16 @@ export enum StatusAuth {
   providedIn: 'root',
 })
 export class AuthService {
-  private apiUrl = environment.apiUrl;
+  private get apiUrl() { return this.configService.apiUrl; }
   private _statusClient = signal<StatusAuth>(StatusAuth.NoAutenticado);
   private _userAuth = signal<UserAuth | null>(null);
   private _salaDiagrama = signal<SalaDiagrama | null>(null);
 
-  constructor(private http: HttpClient, private wsService: WebsocketService) {}
+  constructor(
+    private http: HttpClient,
+    private wsService: WebsocketService,
+    private configService: ConfigService
+  ) {}
 
   setSalaDiagrama(salaDiagrama: SalaDiagrama): void {
     console.log('setSalaDiagrama:', salaDiagrama);

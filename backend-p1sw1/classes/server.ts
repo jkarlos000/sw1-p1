@@ -90,6 +90,6 @@ export default class Server {
   }
 
   start(callBack: () => void) {
-    this.httpServer.listen(this.port, callBack);
+    this.httpServer.listen(this.port, '0.0.0.0', callBack);
   }
 }

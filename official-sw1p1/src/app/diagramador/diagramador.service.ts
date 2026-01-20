@@ -4,15 +4,17 @@ import { Observable } from 'rxjs';
 import { environment } from '../../environments/environment';
 import { AuthService } from '../auth/auth.service';
 import { WebsocketService } from '../common/services/websocket.service';
+import { ConfigService } from '../common/services/config.service';
 
 @Injectable({
   providedIn: 'root',
 })
 export class DiagramadorService {
-  private apiUrl = environment.apiUrl;
+  private get apiUrl() { return this.configService.apiUrl; }
   public http = inject(HttpClient);
   public wsService = inject(WebsocketService);
   public userAuth = inject(AuthService);
+  private configService = inject(ConfigService);
 
   onListenChangedDiagrama() {
     return this.wsService.listen('changed-diagrama');

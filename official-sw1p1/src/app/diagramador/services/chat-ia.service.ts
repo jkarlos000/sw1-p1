@@ -3,6 +3,7 @@ import { inject, Injectable, signal } from '@angular/core';
 import { Observable, BehaviorSubject } from 'rxjs';
 import { environment } from '../../../environments/environment';
 import { WebsocketService } from '../../common/services/websocket.service';
+import { ConfigService } from '../../common/services/config.service';
 
 export interface Mensaje {
   id_mensaje?: number;
@@ -38,8 +39,9 @@ export interface Conversacion {
 export class ChatIaService {
   private http = inject(HttpClient);
   private wsService = inject(WebsocketService);
+  private configService = inject(ConfigService);
   
-  private baseUrl = environment.apiUrl;
+  private get baseUrl() { return this.configService.apiUrl; }
 
   // Signals para estado reactivo
   public mensajes = signal<Mensaje[]>([]);

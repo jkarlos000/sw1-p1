@@ -25,6 +25,7 @@ import { KeyboardService } from './services/keyboard.service';
 import RappidService from './services/kitchensink.service';
 import { StencilService } from './services/stencil.service';
 import { ToolbarService } from './services/toolbar.service';
+import { ConfigService } from '../common/services/config.service';
 
 @Component({
   selector: 'app-diagramador',
@@ -44,6 +45,7 @@ export default class DiagramadorComponent
   public route = inject(Router);
   public userAuth = inject(AuthService);
   public chatIaService = inject(ChatIaService);
+  private configService = inject(ConfigService);
   onListenRespUnirseReunion!: Subscription;
   onListenModificacionesDiagrama!: Subscription;
   private rappid: RappidService;
@@ -72,7 +74,8 @@ export default class DiagramadorComponent
       new InspectorService(),
       new HaloService(),
       new KeyboardService(),
-      this.http
+      this.http,
+      this.configService
     );
     
     // Asignar callback para limpiar diagrama y sincronizar

@@ -1,8 +1,14 @@
+/**
+ * NOTA: Las URLs ahora se cargan desde assets/config.json
+ * En producción, el servidor debe crear config.json con las URLs correctas
+ * 
+ * Ejemplo de config.json:
+ * {
+ *   "apiUrl": "https://api.tudominio.com",
+ *   "wsUrl": "https://api.tudominio.com"
+ * }
+ */
+
 export const environment = {
   production: true,
-  apiUrl: 'http://localhost:3000',
-  wsUrl: 'http://localhost:3000',
 };
-
-// apiUrl: 'https://backend-sw1-19e3145c5188.herokuapp.com',
-// apiUrl: 'http://localhost:3000',

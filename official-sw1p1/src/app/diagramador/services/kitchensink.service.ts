@@ -441,26 +441,32 @@ class KitchenSinkService {
   }
 
   convertirCadenaALista(cadena: string): AtributoClase[] {
-    // Paso 1: Eliminar todos los \\n
-    const cadenaSinSaltos = cadena.replace(/\\n/g, '');
+    if (!cadena || cadena.trim() === '') {
+      return [];
+    }
 
-    // Paso 2: Dividir la cadena por el símbolo -
-    const lista = cadenaSinSaltos.split('-');
+    // Separar atributos de métodos usando el separador UML ───────
+    const partes = cadena.split(/─{5,}/); // Separador de 5 o más guiones largos
+    const seccionAtributos = partes[0] || '';
+    
+    // Dividir por saltos de línea
+    const lineas = seccionAtributos.split(/\\n|\n/);
+    
+    // Filtrar solo líneas que NO contengan paréntesis (métodos)
+    const lineasAtributos = lineas.filter(linea => {
+      const lineaTrim = linea.trim();
+      return lineaTrim !== '' && 
+             !lineaTrim.includes('(') && 
+             !lineaTrim.includes(')') &&
+             lineaTrim.includes(':'); // Debe tener el separador tipo
+    });
 
-    // Paso 3: Filtrar los elementos vacíos
-    const listaFiltrada = lista.filter((item) => item.trim() !== '');
-
-    // Devolver la lista de cadenas
-    listaFiltrada.map((item) => item.trim());
-
-    // Paso 4: Crear la lista de atributos
-    let listaAtributos: AtributoClase[] = [];
-    listaFiltrada.forEach((item) => {
-      let atributo: AtributoClase = {
+    // Crear lista de atributos
+    const listaAtributos: AtributoClase[] = lineasAtributos.map((linea) => {
+      return {
         id: uuidv4(),
-        titulo: item,
+        titulo: linea.trim()
       };
-      listaAtributos.push(atributo);
     });
 
     return listaAtributos;
@@ -1184,52 +1190,88 @@ private List<${claseF.titulo}> ${pluralize(claseF.titulo.toLowerCase())};
         const carpetaControladores = zip.folder('controladores');
         const carpetaRepositorios = zip.folder('repositorios');
 
-        // Crear archivo README.md
-        const contenidoREADME = `
-# Proyecto Generado
-
-Este proyecto contiene las siguientes carpetas y archivos:
-
-- **modelos**: Contiene las clases de modelo JPA.
-- **repositorios**: Contiene las interfaces de repositorio.
-- **servicios**: Contiene las clases de servicio.
-- **controladores**: Contiene las clases de controlador.
-
-## Configuración de la Base de Datos
-
-El archivo \`application.properties\` contiene la configuración de la base de datos PostgreSQL.
-
-\`\`\`
-spring.application.name=proyecto
-spring.jpa.database=POSTGRESQL
-spring.datasource.url=jdbc:postgresql://localhost:5432/proyecto
-spring.datasource.username=postgres
-spring.datasource.password=clave123
-spring.jpa.show-sql=true
-spring.security.basic.enabled=false
-spring.jackson.serialization.fail-on-empty-beans=false
-
-spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect
-spring.jpa.hibernate.ddl-auto=update
-server.port=8081
-\`\`\`
-
-**Nota:** Debes tener creada la base de datos con el nombre \`proyecto\` en PostgreSQL.
-
-## Ejecución del Proyecto
-
-Para ejecutar el proyecto, sigue estos pasos:
-
-1. Asegúrate de tener [Java](https://www.oracle.com/java/technologies/javase-jdk11-downloads.html) y [Maven](https://maven.apache.org/install.html) instalados en tu máquina.
-2. Navega al directorio raíz del proyecto donde se encuentra el archivo \`pom.xml\`.
-3. Ejecuta el siguiente comando para compilar y ejecutar el proyecto:
-   \`\`\`sh
-   mvn spring-boot:run
-   \`\`\`
-
-El proyecto se ejecutará en el puerto 8081, como se especifica en el archivo \`application.properties\`.
-
-`;
+        // Crear archivo README.md con un contenido simplificado pero completo
+        const contenidoREADME = [
+          '# Proyecto Spring Boot - Generado Automáticamente',
+          '',
+          'Este proyecto Spring Boot fue generado automáticamente a partir de un diagrama UML 2.5 y contiene una API REST completamente funcional.',
+          '',
+          '## Estructura del Proyecto',
+          '',
+          'proyecto/',
+          '├── modelos/           # Entidades JPA (@Entity) con relaciones',
+          '├── repositorios/      # Interfaces JpaRepository para acceso a datos',
+          '├── servicios/         # Lógica de negocio',
+          '├── controladores/     # Endpoints REST (@RestController)',
+          '├── application.properties  # Configuración',
+          '└── pom.xml           # Dependencias Maven',
+          '',
+          '## Requisitos Previos',
+          '',
+          '1. Java JDK 17+ - https://adoptium.net/',
+          '2. Maven 3.8+ - https://maven.apache.org/download.cgi',
+          '3. PostgreSQL 13+ - https://www.postgresql.org/download/',
+          '4. Postman (opcional) - https://www.postman.com/downloads/',
+          '',
+          '## Configuración de la Base de Datos',
+          '',
+          '### Crear la Base de Datos:',
+          '',
+          'psql -U postgres',
+          'CREATE DATABASE proyecto;',
+          '',
+          '### Configurar Credenciales en application.properties:',
+          '',
+          'spring.datasource.username=postgres',
+          'spring.datasource.password=clave123',
+          '',
+          '## Ejecutar el Proyecto',
+          '',
+          '### Con Maven:',
+          'mvn spring-boot:run',
+          '',
+          '### Con JAR:',
+          'mvn clean package',
+          'java -jar target/proyecto-0.0.1-SNAPSHOT.jar',
+          '',
+          '## Probar con Postman',
+          '',
+          '### Endpoints por Entidad (ejemplo: Usuario):',
+          '',
+          '- GET    http://localhost:8081/usuario       | Listar todos',
+          '- GET    http://localhost:8081/usuario/{id}  | Obtener por ID',
+          '- POST   http://localhost:8081/usuario       | Crear nuevo',
+          '- PUT    http://localhost:8081/usuario/{id}  | Actualizar',
+          '- DELETE http://localhost:8081/usuario/{id}  | Eliminar',
+          '',
+          '### Ejemplo de Body (POST/PUT):',
+          '{',
+          '  "nombre": "Juan Perez",',
+          '  "email": "juan@example.com",',
+          '  "edad": 30',
+          '}',
+          '',
+          '## Configuración (application.properties)',
+          '',
+          'spring.datasource.url=jdbc:postgresql://localhost:5432/proyecto',
+          'spring.jpa.hibernate.ddl-auto=update',
+          'server.port=8081',
+          '',
+          '## Solución de Problemas',
+          '',
+          '- Error "Database does not exist" → Crear con CREATE DATABASE proyecto;',
+          '- Error "Connection refused" → Verificar PostgreSQL: sudo service postgresql status',
+          '- Error "Port already in use" → Cambiar puerto en application.properties',
+          '',
+          '## Recursos',
+          '',
+          '- Spring Boot: https://spring.io/projects/spring-boot',
+          '- Spring Data JPA: https://spring.io/projects/spring-data-jpa',
+          '- PostgreSQL: https://www.postgresql.org/docs/',
+          '',
+          '---',
+          'Generado desde diagrama UML 2.5',
+        ].join('\\n');
 
         zip.file('README.md', contenidoREADME);
 
@@ -2339,29 +2381,61 @@ public interface ${nombreClase}Repositorio extends JpaRepository<${nombreClase},
   }
 
   parsearAtributo(atributo: string): AtributosSB {
-    const [nombre, tipoPostgres] = atributo.trim().split(':');
-    const tipoJava = this.convertirTipoPostgresATipoJava(tipoPostgres);
+    // Formato UML 2.5: [+|-|#|~] nombre : tipo
+    const atributoTrim = atributo.trim();
+    
+    // Remover símbolos de visibilidad (+, -, #, ~)
+    const sinVisibilidad = atributoTrim.replace(/^[+\-#~]\s*/, '');
+    
+    // Separar nombre y tipo por :
+    const partes = sinVisibilidad.split(':');
+    
+    if (partes.length < 2) {
+      // Si no tiene formato correcto, retornar con tipo String
+      return new AtributosSB(sinVisibilidad.trim(), 'String');
+    }
+    
+    const nombre = partes[0].trim();
+    const tipoUML = partes[1].trim();
+    
+    // Convertir tipo UML a tipo Java
+    const tipoJava = this.convertirTipoUMLATipoJava(tipoUML);
+    
     return new AtributosSB(nombre, tipoJava);
   }
 
-  convertirTipoPostgresATipoJava(tipoPostgres: string): string {
+  convertirTipoUMLATipoJava(tipoUML: string): string {
+    // Mapeo de tipos UML/PostgreSQL a tipos Java
     const mapeoTipos: { [key: string]: string } = {
-      integer: 'Long',
-      serial: 'Long',
-      bigint: 'Long',
-      smallint: 'Long',
-      numeric: 'BigDecimal',
-      decimal: 'BigDecimal',
-      double: 'double',
-      real: 'Float',
-      char: 'String',
-      varchar: 'String',
-      text: 'String',
-      boolean: 'Boolean',
-      date: 'LocalDate',
-      timestamp: 'LocalDateTime',
+      // Tipos UML 2.5
+      'Integer': 'Long',
+      'String': 'String',
+      'Boolean': 'Boolean',
+      'Double': 'Double',
+      'Float': 'Float',
+      'Date': 'LocalDate',
+      'DateTime': 'LocalDateTime',
+      'Long': 'Long',
+      'Object': 'Object',
+      
+      // Tipos PostgreSQL (compatibilidad)
+      'integer': 'Long',
+      'serial': 'Long',
+      'bigint': 'Long',
+      'smallint': 'Long',
+      'numeric': 'BigDecimal',
+      'decimal': 'BigDecimal',
+      'double': 'double',
+      'real': 'Float',
+      'char': 'String',
+      'varchar': 'String',
+      'text': 'String',
+      'boolean': 'Boolean',
+      'date': 'LocalDate',
+      'timestamp': 'LocalDateTime',
     };
-    return mapeoTipos[tipoPostgres] || 'String';
+    
+    return mapeoTipos[tipoUML] || 'String';
   }
 
   encontrarClaseTrabajo(

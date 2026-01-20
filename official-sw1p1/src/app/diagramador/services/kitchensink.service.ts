@@ -1185,10 +1185,122 @@ private List<${claseF.titulo}> ${pluralize(claseF.titulo.toLowerCase())};
         // READ : PAQUETES SERVICIOS
 
         const zip = new JSZip();
-        const carpetaModelos = zip.folder('modelos');
-        const carpetaServicios = zip.folder('servicios');
-        const carpetaControladores = zip.folder('controladores');
-        const carpetaRepositorios = zip.folder('repositorios');
+        
+        // Crear estructura de directorios Maven
+        const srcMainJava = zip.folder('src/main/java/com/proyecto');
+        const srcMainResources = zip.folder('src/main/resources');
+        
+        const carpetaModelos = srcMainJava!.folder('modelos');
+        const carpetaServicios = srcMainJava!.folder('servicios');
+        const carpetaControladores = srcMainJava!.folder('controladores');
+        const carpetaRepositorios = srcMainJava!.folder('repositorios');
+
+        // Crear pom.xml
+        const pomXml = `<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0
+         https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.1</version>
+        <relativePath/>
+    </parent>
+    
+    <groupId>com.proyecto</groupId>
+    <artifactId>api-rest</artifactId>
+    <version>1.0.0</version>
+    <name>API REST Generada</name>
+    <description>Proyecto Spring Boot generado desde diagrama UML 2.5</description>
+    
+    <properties>
+        <java.version>17</java.version>
+    </properties>
+    
+    <dependencies>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+    </dependencies>
+    
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>`;
+
+        zip.file('pom.xml', pomXml);
+
+        // Crear application.properties
+        const applicationProperties = `# Configuración de la base de datos PostgreSQL
+spring.datasource.url=jdbc:postgresql://localhost:5432/nombre_base_datos
+spring.datasource.username=postgres
+spring.datasource.password=tu_password
+
+# Configuración de JPA/Hibernate
+spring.jpa.hibernate.ddl-auto=update
+spring.jpa.show-sql=true
+spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.PostgreSQLDialect
+spring.jpa.properties.hibernate.format_sql=true
+
+# Puerto del servidor
+server.port=8080
+
+# Configuración de logs
+logging.level.org.hibernate.SQL=DEBUG
+logging.level.org.hibernate.type.descriptor.sql.BasicBinder=TRACE`;
+
+        srcMainResources!.file('application.properties', applicationProperties);
+
+        // Crear clase principal Application.java
+        const applicationJava = `package com.proyecto;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class Application {
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args);
+    }
+}`;
+
+        srcMainJava!.file('Application.java', applicationJava);
 
         // Crear archivo README.md con un contenido simplificado pero completo
         const contenidoREADME = [

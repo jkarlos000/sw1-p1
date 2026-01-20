@@ -1,60 +1,32 @@
-# Backend - Node.js + TypeScript + Socket.IO
-# Multi-stage build optimizado para producción
+# Backend - Node.js + TypeScript
+# Single-stage simplified build para evitar problemas de DNS/compilación
 
-# Etapa 1: Dependencias
-FROM node:20-alpine AS deps
+FROM node:20-alpine
 WORKDIR /app
 
-# Instalar solo dependencias de producción
+# Copiar package files
 COPY package*.json ./
-RUN npm ci --omit=dev --ignore-scripts && \
-    npm cache clean --force
 
-# Etapa 2: Build
-FROM node:20-alpine AS builder
-WORKDIR /app
+# Instalar dependencias
+RUN npm install --production=false
 
-# Copiar dependencias
-COPY package*.json tsconfig.json ./
-RUN npm ci --ignore-scripts
-
-# Copiar código fuente y compilar
+# Copiar código fuente completo
 COPY . .
-RUN npm run build || npx tsc
-
-# Etapa 3: Runtime
-FROM node:20-alpine AS runtime
-WORKDIR /app
-
-# Instalar wget para health checks
-RUN apk add --no-cache wget
 
 # Usuario no-root
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+    adduser -S nodejs -u 1001 && \
+    mkdir -p /app/uploads && \
+    chown -R nodejs:nodejs /app
 
-# Copiar dependencias y build
-COPY --from=deps --chown=nodejs:nodejs /app/node_modules ./node_modules
-COPY --from=builder --chown=nodejs:nodejs /app/dist ./dist
-COPY --from=builder --chown=nodejs:nodejs /app/package*.json ./
-
-# Crear directorio para uploads multimodales
-RUN mkdir -p /app/uploads && chown nodejs:nodejs /app/uploads
-
-# Cambiar a usuario no-root
 USER nodejs
 
 # Puerto
 EXPOSE 3000
 
 # Variables de entorno
-ENV NODE_ENV=production \
-    PORT=3000 \
-    NODE_OPTIONS="--max-old-space-size=512"
+ENV NODE_ENV=production
 
-# Health check con wget
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+# Ejecutar directamente con ts-node (sin compilar a JS)
+CMD ["node", "--require", "ts-node/register", "index.ts"]
 
-# Iniciar aplicación
-CMD ["node", "dist/index.js"]

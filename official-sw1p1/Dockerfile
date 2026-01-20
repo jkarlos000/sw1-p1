@@ -1,55 +1,24 @@
-# Frontend - Angular 18 Standalone + Nginx
-# Multi-stage build optimizado
+# Frontend - Nginx serving pre-built static files
+# Build Angular LOCALLY before docker build
 
-# Etapa 1: Dependencias
-FROM node:20-alpine AS deps
-WORKDIR /app
-
-COPY package*.json ./
-RUN npm ci --ignore-scripts && \
-    npm cache clean --force
-
-# Etapa 2: Build
-FROM node:20-alpine AS builder
-WORKDIR /app
-
-# Build arg para configurar URL del backend
-ARG BACKEND_URL=http://localhost:3000
-ENV BACKEND_URL=$BACKEND_URL
-
-# Copiar dependencias
-COPY --from=deps /app/node_modules ./node_modules
-COPY . .
-
-# Build de producción
-RUN npm run build -- \
-    --configuration production \
-    --output-path=dist/browser \
-    --optimization=true \
-    --source-map=false
-
-# Etapa 3: Runtime con Nginx
-FROM nginx:1.26-alpine AS runtime
+FROM nginx:1.26-alpine
 
 # Copiar configuración Nginx
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Copiar archivos compilados
-COPY --from=builder /app/dist/browser /usr/share/nginx/html
+# Copiar aplicación pre-compilada (debe existir dist/client-socket en local)
+# IMPORTANTE: Ejecutar 'npm run build' localmente ANTES de docker build
+COPY dist/client-socket /usr/share/nginx/html
 
-# Crear directorio para logs
-RUN mkdir -p /var/log/nginx && \
-    chown -R nginx:nginx /var/log/nginx /usr/share/nginx/html
+# Copiar config.json para runtime
+COPY src/assets/config.json /usr/share/nginx/html/assets/config.json
+
+# Usuario nginx
+RUN chown -R nginx:nginx /usr/share/nginx/html
+USER nginx
 
 # Puerto
 EXPOSE 80
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost/ || exit 1
-
-# Usuario nginx (no-root)
-USER nginx
-
-# Iniciar Nginx
+# Nginx
 CMD ["nginx", "-g", "daemon off;"]

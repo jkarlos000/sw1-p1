@@ -1017,7 +1017,7 @@ ${
             .join('\n');
 
           let jpaClase: string = `
-package com.nombreproyecto.proyecto.modelos;
+package com.proyecto.modelos;
 import jakarta.persistence.*;
 import lombok.Data;
 import java.io.Serializable;
@@ -2199,13 +2199,13 @@ Estructura compacta pero legible.`;
 
     const { simples } = parsearAtributos(jpaClass.contenido);
 
-    return `package com.nombreproyecto.proyecto.servicios;
+    return `package com.proyecto.servicios;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import com.nombreproyecto.proyecto.modelos.${nombreClase};
-import com.nombreproyecto.proyecto.repositorios.${nombreClase}Repositorio;
+import com.proyecto.modelos.${nombreClase};
+import com.proyecto.repositorios.${nombreClase}Repositorio;
 
 import java.util.List;
 import java.util.Optional;
@@ -2299,18 +2299,20 @@ public class ${nombreClase}Servicio {
 
   // Generar controlador
   generarControlador(nombreClase: string): string {
-    return `package com.nombreproyecto.proyecto.controladores;
+    const nombrePlural = pluralize(nombreClase.toLowerCase());
+    return `package com.proyecto.controladores;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import com.nombreproyecto.proyecto.modelos.${nombreClase};
-import com.nombreproyecto.proyecto.servicios.${nombreClase}Servicio;
+import com.proyecto.modelos.${nombreClase};
+import com.proyecto.servicios.${nombreClase}Servicio;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/${nombreClase.toLowerCase()}")
+@RequestMapping("/api/${nombrePlural}")
+@CrossOrigin(origins = "*")
 public class ${nombreClase}Controlador {
 
 @Autowired
@@ -2350,10 +2352,10 @@ public ResponseEntity<String> eliminar(@PathVariable Long id) {
 
   // Generar repositorio
   generarRepositorio(nombreClase: string): string {
-    return `package com.nombreproyecto.proyecto.repositorios;
+    return `package com.proyecto.repositorios;
 
 import org.springframework.data.jpa.repository.JpaRepository;
-import com.nombreproyecto.proyecto.modelos.${nombreClase};
+import com.proyecto.modelos.${nombreClase};
 
 public interface ${nombreClase}Repositorio extends JpaRepository<${nombreClase}, Long> {
 }

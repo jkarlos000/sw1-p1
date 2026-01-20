@@ -1478,7 +1478,7 @@ ${descripcionClases}
 REQUISITOS DE LA COLECCIÓN:
 
 1. **Información General:**
-   - Nombre de colección: "API REST - Gestión de Datos"
+   - Nombre de colección: "API REST"
    - Variable: {{baseUrl}} = http://localhost:8080/api
 
 2. **Para cada clase, crea UNA carpeta con estos 5 endpoints:**
@@ -1529,11 +1529,19 @@ Estructura compacta pero legible.`;
             collectionJson = JSON.parse(collectionJson);
           }
 
-          // Solicitar nombre de archivo
-          const nombreArchivo = window.prompt('Ingrese el nombre de la colección:', 'API-REST-Collection');
-          const fileName = nombreArchivo && nombreArchivo.trim() !== '' 
-            ? `${nombreArchivo.trim()}.postman_collection.json` 
-            : 'API-REST-Collection.postman_collection.json';
+          // Solicitar nombre de la colección
+          const nombreColeccion = window.prompt('Ingrese el nombre de la colección:', 'API-REST-Collection');
+          const nombreFinal = nombreColeccion && nombreColeccion.trim() !== '' 
+            ? nombreColeccion.trim() 
+            : 'API-REST-Collection';
+
+          // Actualizar el nombre interno de la colección (el que se ve en Postman)
+          if (collectionJson && collectionJson.info) {
+            collectionJson.info.name = nombreFinal;
+          }
+
+          // Nombre del archivo
+          const fileName = `${nombreFinal}.postman_collection.json`;
 
           // Descargar el archivo JSON
           const blob = new Blob([JSON.stringify(collectionJson, null, 2)], { 

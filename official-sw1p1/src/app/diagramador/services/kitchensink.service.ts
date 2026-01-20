@@ -1457,29 +1457,58 @@ public class Application {
 
           // Construir descripción de las clases para el prompt
           let descripcionClases = elementosClases.map(clase => {
-            const atributos = clase.atributos.map(a => `  - ${a.titulo}`).join('\n');
+            const atributos = clase.atributos.map(a => {
+              // Limpiar símbolos de visibilidad UML 2.5 (+, -, #, ~)
+              const atributoLimpio = a.titulo.replace(/^[+\-#~]\s*/, '').trim();
+              return `  - ${atributoLimpio}`;
+            }).join('\n');
             return `Clase: ${clase.titulo}\nAtributos:\n${atributos}`;
           }).join('\n\n');
 
           // Construir el prompt para Claude
-          const promptText = `Genera una colección de Postman v2.1 en formato JSON para una API REST Spring Boot basada en las siguientes clases JPA:
+          const promptText = `Genera una colección de Postman v2.1 en formato JSON para una API REST Spring Boot basada en las siguientes clases JPA.
+
+Los atributos están en formato UML 2.5 (pueden tener símbolos de visibilidad como +, -, #, ~ al inicio, ignóralos).
+Formato: nombre : tipo
+
+CLASES DEL DIAGRAMA:
 
 ${descripcionClases}
 
-REQUISITOS:
-1. Colección: "API REST - Gestión de Datos"
-2. URL base: {{baseUrl}} = http://localhost:8080/api
-3. Para cada clase, crea UNA carpeta con estos 5 endpoints:
-   - GET /[clase-plural]?page=0&size=10
-   - GET /[clase-plural]/{id}
-   - POST /[clase-plural] (con body JSON de ejemplo)
-   - PUT /[clase-plural]/{id} (con body JSON de ejemplo)
-   - DELETE /[clase-plural]/{id}
-4. Nombres en minúsculas y plural: "policias", "departamentos"
-5. Header: Content-Type: application/json
-6. NO incluyas el campo "response" en los requests (omite ejemplos de respuesta para reducir tamaño)
+REQUISITOS DE LA COLECCIÓN:
 
-IMPORTANTE: Responde SOLO el JSON válido de Postman, sin markdown, sin explicaciones. Estructura compacta.`;
+1. **Información General:**
+   - Nombre de colección: "API REST - Gestión de Datos"
+   - Variable: {{baseUrl}} = http://localhost:8080/api
+
+2. **Para cada clase, crea UNA carpeta con estos 5 endpoints:**
+   - GET /[clase-plural]?page=0&size=10 (Listar con paginación)
+   - GET /[clase-plural]/{id} (Obtener por ID)
+   - POST /[clase-plural] (Crear - incluye body JSON de ejemplo)
+   - PUT /[clase-plural]/{id} (Actualizar - incluye body JSON de ejemplo)
+   - DELETE /[clase-plural]/{id} (Eliminar)
+
+3. **Reglas de nombres:**
+   - Rutas en minúsculas y plural: "clientes", "productos", "ventas"
+   - Variables path: {id}, {clienteId}, etc.
+
+4. **Body JSON de ejemplo:**
+   - Para POST/PUT: crea un JSON con todos los atributos
+   - Usa valores realistas según el tipo de dato
+   - String → "texto ejemplo", Integer → 1, Boolean → true, Date → "2024-01-20"
+   - NO incluyas el campo "id" en POST (es auto-generado)
+   - SÍ incluye "id" en PUT
+
+5. **Headers:**
+   - Content-Type: application/json (en todos los requests)
+
+6. **NO incluyas:**
+   - El campo "response" (omite ejemplos de respuesta para reducir tamaño)
+   - Explicaciones adicionales
+
+FORMATO DE RESPUESTA:
+Responde ÚNICAMENTE con el JSON válido de Postman v2.1, sin markdown, sin \`\`\`json, sin explicaciones.
+Estructura compacta pero legible.`;
 
           // Llamar a la API de IA
           const response = await this.http.post<any>(`${this.apiUrl}/chat-ia/generar-postman`, {

@@ -8,6 +8,7 @@ import {
   OnDestroy,
   OnInit,
   ViewChild,
+  ChangeDetectorRef,
 } from '@angular/core';
 import { FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterModule } from '@angular/router';
@@ -26,13 +27,15 @@ import RappidService from './services/kitchensink.service';
 import { StencilService } from './services/stencil.service';
 import { ToolbarService } from './services/toolbar.service';
 import { ConfigService } from '../common/services/config.service';
+import { ClaseUmlService } from '../common/services/clase-uml.service';
+import { UmlClassEditorComponent } from './components/uml-class-editor.component';
 
 @Component({
   selector: 'app-diagramador',
   standalone: true,
-  imports: [FormsModule, CommonModule, ReactiveFormsModule, RouterModule, ChatIaComponent],
+  imports: [FormsModule, CommonModule, ReactiveFormsModule, RouterModule, ChatIaComponent, UmlClassEditorComponent],
   templateUrl: './diagramador.component.html',
-  styleUrl: './diagramador.component.css',
+  styleUrls: ['./diagramador.component.css', './components/uml-editor.css'],
 })
 export default class DiagramadorComponent
   implements OnInit, OnDestroy, AfterViewInit
@@ -46,6 +49,8 @@ export default class DiagramadorComponent
   public userAuth = inject(AuthService);
   public chatIaService = inject(ChatIaService);
   private configService = inject(ConfigService);
+  private claseUmlService = inject(ClaseUmlService);
+  private cdr = inject(ChangeDetectorRef);
   onListenRespUnirseReunion!: Subscription;
   onListenModificacionesDiagrama!: Subscription;
   private rappid: RappidService;
@@ -63,6 +68,9 @@ export default class DiagramadorComponent
 
   // Contador para posicionamiento de clases en grid
   private contadorClasesAgregadas = 0;
+
+  // 🆕 Propiedades para el editor UML 2.5
+  public claseSeleccionada: any = null;
 
   constructor(private element: ElementRef) {}
 
@@ -82,6 +90,32 @@ export default class DiagramadorComponent
     this.rappid.onClearDiagram = () => this.limpiarDiagrama();
     
     this.rappid.startRappid();
+    
+    // 🆕 Agregar listener para selección de clases
+    this.rappid.paper.on('cell:pointerclick', (cellView: any) => {
+      console.log('🖱️ Click detectado en celda');
+      const cell = cellView.model;
+      const tipo = cell.get('type');
+      console.log('📦 Tipo de celda:', tipo);
+      
+      // Detectar clases UML (standard.HeaderedRectangle)
+      if (tipo === 'standard.HeaderedRectangle') {
+        console.log('✅ Es una clase UML, abriendo editor...');
+        this.onCellSelected(cell);
+        this.cdr.detectChanges(); // Forzar detección de cambios
+        
+        // Prevenir que se muestre el inspector tradicional
+        event?.stopPropagation();
+      } else {
+        console.log('❌ No es una clase, cerrando editor');
+        this.claseSeleccionada = null;
+        this.cdr.detectChanges();
+        
+        // Para enlaces y otros elementos, dejar que el sistema maneje el inspector tradicional
+        // pero no mostrar error si no existe configuración
+      }
+    });
+    
     const themePicker = new ThemePicker({ mainView: this.rappid });
     document.body.appendChild(themePicker.render().el);
     // LOGIC : VERIFICAR SI HAY CONTENIDO PREVIO EN EL DIAGRAMA
@@ -600,5 +634,173 @@ export default class DiagramadorComponent
     } catch (error) {
       console.error(`❌ Error al agregar relación ${origen} → ${destino}:`, error);
     }
+  }
+
+  // 🆕 MÉTODOS PARA EL EDITOR UML 2.5
+  
+  onCellSelected(cell: any) {
+    console.log('📝 Procesando selección de clase:', cell.id);
+    
+    // Para standard.HeaderedRectangle, el nombre está en el header y los atributos en el body
+    const nombreHeader = cell.attr('headerText/text') || cell.attr('header/text') || '';
+    // CRÍTICO: bodyText usa textWrap para wrapping automático
+    const bodyText = cell.attr('bodyText/textWrap/text') || cell.attr('bodyText/text') || cell.attr('body/text') || '';
+    
+    console.log('📄 Header:', nombreHeader);
+    console.log('📄 Body:', bodyText);
+    
+    const nombre = nombreHeader || 'Nueva Clase';
+    console.log('🏷️ Nombre de clase:', nombre);
+    
+    // Extraer atributos del body
+    const atributos: any[] = [];
+    const metodos: any[] = [];
+    
+    if (bodyText) {
+      const lineas = bodyText.split('\n');
+      
+      // Parsear cada línea del body
+      let enSeccionMetodos = false;
+      for (let i = 0; i < lineas.length; i++) {
+        const linea = lineas[i].trim();
+        
+        if (linea.includes('───') || linea === '---') {
+          enSeccionMetodos = true;
+          continue;
+        }
+        
+        if (linea && linea !== '' && !linea.includes('─')) {
+          if (linea.includes('(') && linea.includes(')')) {
+            // Es un método
+            metodos.push(this.parsearMetodoSimple(linea, `method_${i}`));
+          } else if (linea.includes(':')) {
+            // Es un atributo
+            atributos.push(this.parsearAtributoSimple(linea, `attr_${i}`));
+          }
+        }
+      }
+    }
+    
+    this.claseSeleccionada = {
+      cell: cell,
+      nombre: nombre,
+      atributos: atributos,
+      metodos: metodos
+    };
+    
+    console.log('✨ Clase seleccionada actualizada:', this.claseSeleccionada);
+    console.log('📊 Atributos:', atributos.length, 'Métodos:', metodos.length);
+  }
+
+  parsearAtributoSimple(linea: string, id: string): any {
+    // Formato: [+|-|#|~] nombre : tipo [= valor]
+    const match = linea.match(/^([+\-#~])?\s*(\w+)\s*:\s*(\w+)(?:\s*=\s*(.+))?/);
+    if (match) {
+      return {
+        id,
+        titulo: match[2],
+        tipo: match[3],
+        visibility: this.simboloAVisibilidad(match[1] || '-'),
+        defaultValue: match[4]
+      };
+    }
+    return { id, titulo: 'atributo', tipo: 'String', visibility: 'private' };
+  }
+
+  parsearMetodoSimple(linea: string, id: string): any {
+    // Formato: [+|-|#|~] nombre(params) : tipo
+    const match = linea.match(/^([+\-#~])?\s*(\w+)\(([^)]*)\)\s*:\s*(\w+)/);
+    if (match) {
+      const params = match[3] ? match[3].split(',').map((p: string) => {
+        const parts = p.trim().split(':');
+        return { nombre: parts[0].trim(), tipo: parts[1] ? parts[1].trim() : 'Object' };
+      }) : [];
+      
+      return {
+        id,
+        nombre: match[2],
+        parametros: params,
+        tipoRetorno: match[4],
+        visibility: this.simboloAVisibilidad(match[1] || '+')
+      };
+    }
+    return { id, nombre: 'metodo', parametros: [], tipoRetorno: 'void', visibility: 'public' };
+  }
+
+  simboloAVisibilidad(simbolo: string): string {
+    switch (simbolo) {
+      case '+': return 'public';
+      case '-': return 'private';
+      case '#': return 'protected';
+      case '~': return 'package';
+      default: return 'private';
+    }
+  }
+  
+  onNombreClaseCambio() {
+    if (this.claseSeleccionada && this.claseSeleccionada.cell) {
+      this.actualizarTextoClase();
+    }
+  }
+
+  onClaseEditada(cambio: any) {
+    if (this.claseSeleccionada) {
+      this.claseSeleccionada.atributos = cambio.atributos;
+      this.claseSeleccionada.metodos = cambio.metodos;
+      this.actualizarTextoClase();
+    }
+  }
+
+  actualizarTextoClase() {
+    if (!this.claseSeleccionada || !this.claseSeleccionada.cell) return;
+    
+    const { generarTextoClaseUML } = require('./utils/uml-formatter');
+    
+    // Para standard.HeaderedRectangle, actualizar header y body por separado
+    // Header: nombre de la clase
+    this.claseSeleccionada.cell.attr('headerText/text', this.claseSeleccionada.nombre);
+    
+    // Body: atributos y métodos en formato UML
+    const textoUML = generarTextoClaseUML(
+      this.claseSeleccionada.atributos,
+      this.claseSeleccionada.metodos
+    );
+    
+    // CRÍTICO: Usar textWrap para que JointJS maneje el wrapping automático
+    this.claseSeleccionada.cell.attr('bodyText/textWrap/text', textoUML);
+    
+    // 💾 Persistir en la base de datos
+    if (this.idSala) {
+      const claseData = {
+        cell_id: this.claseSeleccionada.cell.id,
+        nombre: this.claseSeleccionada.nombre,
+        atributos: this.claseSeleccionada.atributos || [],
+        metodos: this.claseSeleccionada.metodos || [],
+        posicion: {
+          x: this.claseSeleccionada.cell.get('position')?.x || 0,
+          y: this.claseSeleccionada.cell.get('position')?.y || 0,
+          width: this.claseSeleccionada.cell.get('size')?.width || 200,
+          height: this.claseSeleccionada.cell.get('size')?.height || 150
+        }
+      };
+      
+      this.claseUmlService.guardarClase(this.idSala, claseData).subscribe({
+        next: (resp) => console.log('✅ Clase guardada en BD:', resp),
+        error: (err) => console.error('❌ Error al guardar clase:', err)
+      });
+    }
+    
+    // Emitir cambio via WebSocket
+    if (this.rappid && this.rappid.graph) {
+      const jsonDiagrama = this.rappid.graph.toJSON();
+      this.diagramadorService.wsService.emit('modificar-diagrama', {
+        sala: this.nombreSala,
+        diagrama: jsonDiagrama
+      });
+    }
+  }
+
+  cerrarEditor() {
+    this.claseSeleccionada = null;
   }
 }

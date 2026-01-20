@@ -101,6 +101,31 @@ export class InspectorService {
         { value: '10,5', content: 'Dashed' },
       ],
 
+      // 🆕 UML 2.5 Visibility Modifiers
+      visibilityModifier: [
+        { value: 'public', content: '+ Public' },
+        { value: 'private', content: '- Private' },
+        { value: 'protected', content: '# Protected' },
+        { value: 'package', content: '~ Package' },
+      ],
+
+      // 🆕 Common data types for UML
+      dataTypes: [
+        { value: 'String', content: 'String' },
+        { value: 'Integer', content: 'Integer' },
+        { value: 'Long', content: 'Long' },
+        { value: 'Float', content: 'Float' },
+        { value: 'Double', content: 'Double' },
+        { value: 'Boolean', content: 'Boolean' },
+        { value: 'Date', content: 'Date' },
+        { value: 'void', content: 'void' },
+        { value: 'Object', content: 'Object' },
+        { value: 'Array', content: 'Array' },
+        { value: 'List', content: 'List' },
+        { value: 'Set', content: 'Set' },
+        { value: 'Map', content: 'Map' },
+      ],
+
       side: [
         { value: 'top', content: 'Top Side' },
         { value: 'right', content: 'Right Side' },
@@ -274,8 +299,8 @@ export class InspectorService {
       ],
     };
 
-    return <{ [index: string]: any }>{
-      'app.Link': {
+    // Configuración compartida para enlaces
+    const linkConfig = {
         inputs: {
           attrs: {
             line: {
@@ -433,7 +458,11 @@ export class InspectorService {
             index: 4,
           },
         },
-      },
+      };
+
+    return <{ [index: string]: any }>{
+      'app.Link': linkConfig,
+      'standard.Link': linkConfig, // 🆕 Agregar soporte para standard.Link
       'standard.Rectangle': {
         inputs: {
           attrs: {

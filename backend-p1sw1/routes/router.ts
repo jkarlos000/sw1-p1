@@ -16,6 +16,12 @@ import {
   obtenerAttachments,
   descargarAttachment
 } from "../controller/chat-ia-multimodal.controller";
+import {
+  guardarClaseUML,
+  obtenerClasesUML,
+  eliminarClaseUML,
+  guardarClasesMultiples
+} from "../controller/clase-uml.controller";
 import { uploadMultipleFiles } from "../middleware/upload.middleware";
 import { pool } from "../database/config";
 const router = Router();
@@ -368,5 +374,21 @@ router.get("/chat-ia/mensaje/:id_mensaje/attachments", obtenerAttachments);
 
 // Descargar attachment
 router.get("/chat-ia/attachment/:id/download", descargarAttachment);
+
+// ========================================
+// RUTAS DE CLASES UML 2.5 (Métodos y Atributos)
+// ========================================
+
+// Guardar una clase completa con atributos y métodos
+router.post("/uml/clase", guardarClaseUML);
+
+// Guardar múltiples clases (batch)
+router.post("/uml/clases", guardarClasesMultiples);
+
+// Obtener todas las clases de una sala
+router.get("/uml/clases/:id_sala", obtenerClasesUML);
+
+// Eliminar una clase
+router.delete("/uml/clase/:id_sala/:cell_id", eliminarClaseUML);
 
 export default router;

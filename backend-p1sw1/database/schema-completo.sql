@@ -1,8 +1,11 @@
 -- =====================================================
 -- SCHEMA COMPLETO DEL SISTEMA
 -- Sistema UML Colaborativo con IA
--- Incluye: Usuarios, Salas, Chat IA, Multimodal
+-- Incluye: Usuarios, Salas, Chat IA, Multimodal, UML 2.5
 -- =====================================================
+
+-- ⚠️ NOTA: Para tablas de UML 2.5 (métodos y atributos),
+-- ejecutar también: uml-metodos-schema.sql
 
 -- ============================================
 -- TABLAS PRINCIPALES (Usuarios y Salas)

@@ -1,17 +1,17 @@
 # Backend - Node.js + TypeScript
-# Single-stage simplified build para evitar problemas de DNS/compilación
+# Build locally and copy dist/
 
 FROM node:20-alpine
 WORKDIR /app
 
-# Copiar package files
+# Copiar solo lo necesario para producción
 COPY package*.json ./
-
-# Instalar dependencias
 RUN npm install --production=false
 
-# Copiar código fuente completo
-COPY . .
+# Copiar código compilado (debe existir dist/ localmente)
+# IMPORTANTE: Ejecutar 'npm run build' localmente ANTES de docker build
+COPY dist ./dist
+COPY package*.json ./
 
 # Usuario no-root
 RUN addgroup -g 1001 -S nodejs && \
@@ -27,6 +27,6 @@ EXPOSE 3000
 # Variables de entorno
 ENV NODE_ENV=production
 
-# Ejecutar directamente con ts-node usando npx
-CMD ["npx", "-y", "ts-node", "index.ts"]
+# Ejecutar JavaScript compilado
+CMD ["node", "dist/index.js"]
 

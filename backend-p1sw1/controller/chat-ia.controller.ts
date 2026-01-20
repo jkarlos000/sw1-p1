@@ -1085,3 +1085,93 @@ export const generarColeccionPostman = async (req: Request, res: Response) => {
         });
     }
 };
+
+export const generarSchemaSQL = async (req: Request, res: Response) => {
+    try {
+        const { prompt } = req.body;
+
+        if (!prompt) {
+            return res.status(400).json({
+                ok: false,
+                mensaje: 'El prompt es requerido'
+            });
+        }
+
+        console.log('🗄️ Generando schema SQL con Claude...');
+
+        const apiKey = process.env.ANTHROPIC_API_KEY;
+        if (!apiKey) {
+            throw new Error('ANTHROPIC_API_KEY no configurada');
+        }
+
+        // Llamar a Claude
+        const claudeResponse = await axios.post(
+            'https://api.anthropic.com/v1/messages',
+            {
+                model: 'claude-sonnet-4-20250514',
+                max_tokens: 16000,
+                temperature: 0.1,
+                messages: [
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ]
+            },
+            {
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey,
+                    'anthropic-version': '2023-06-01'
+                }
+            }
+        );
+
+        const respuestaIA = claudeResponse.data.content[0].text;
+        console.log('📝 Respuesta SQL recibida (primeros 500 chars):', respuestaIA.substring(0, 500));
+
+        // Extraer schema.sql y seed.sql de la respuesta
+        let schemaSQL = '';
+        let seedSQL = '';
+
+        // Buscar bloques SQL en la respuesta
+        const schemaMatch = respuestaIA.match(/-- SCHEMA\.SQL[\s\S]*?(?=-- SEED\.SQL|$)/i);
+        const seedMatch = respuestaIA.match(/-- SEED\.SQL[\s\S]*$/i);
+
+        if (schemaMatch && seedMatch) {
+            schemaSQL = schemaMatch[0].replace(/```sql\n?/g, '').replace(/```\n?/g, '').trim();
+            seedSQL = seedMatch[0].replace(/```sql\n?/g, '').replace(/```\n?/g, '').trim();
+        } else {
+            // Si no están separados, intentar extraer todo el SQL
+            const sqlLimpio = respuestaIA
+                .replace(/```sql\n?/g, '')
+                .replace(/```\n?/g, '')
+                .trim();
+            
+            // Separar por palabras clave
+            const partes = sqlLimpio.split(/-- SEED|\/\* SEED|INSERT INTO/i);
+            if (partes.length > 1) {
+                schemaSQL = partes[0].trim();
+                seedSQL = 'INSERT INTO' + partes.slice(1).join('INSERT INTO');
+            } else {
+                schemaSQL = sqlLimpio;
+                seedSQL = '-- No se generaron datos de prueba';
+            }
+        }
+
+        console.log('✅ Schema y Seed SQL generados');
+        return res.json({
+            ok: true,
+            schema: schemaSQL,
+            seed: seedSQL
+        });
+
+    } catch (error) {
+        console.error('❌ Error al generar schema SQL:', error);
+        return res.status(500).json({
+            ok: false,
+            mensaje: 'Error al generar schema SQL',
+            error: error instanceof Error ? error.message : 'Error desconocido'
+        });
+    }
+};

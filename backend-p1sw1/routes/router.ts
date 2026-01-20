@@ -9,7 +9,8 @@ import {
   guardarSnapshotDiagrama,
   obtenerSnapshots,
   configurarIA,
-  generarColeccionPostman
+  generarColeccionPostman,
+  generarSchemaSQL
 } from "../controller/chat-ia.controller";
 import { 
   enviarMensajeMultimodal,
@@ -361,6 +362,7 @@ router.post("/chat-ia/config", configurarIA);
 
 // Generar colección de Postman con IA
 router.post("/chat-ia/generar-postman", generarColeccionPostman);
+router.post("/chat-ia/generar-sql", generarSchemaSQL);
 
 // ========================================
 // RUTAS DE CHAT IA MULTIMODAL (Audio + Imágenes)

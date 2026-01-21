@@ -4,20 +4,22 @@
 FROM node:20-alpine
 WORKDIR /app
 
-# Copiar solo lo necesario para producción
+# Copiar dependencias ya instaladas localmente
 COPY package*.json ./
-RUN npm install --production
+COPY node_modules ./node_modules
 
 # Copiar código compilado (debe existir dist/ localmente)
-# IMPORTANTE: Ejecutar 'npm run build' localmente ANTES de docker build
+# IMPORTANTE: 
+# 1. Ejecutar 'npm install' localmente ANTES de docker build
+# 2. Ejecutar 'npm run build' localmente ANTES de docker build
 COPY dist ./dist
-COPY package*.json ./
 
-# Usuario no-root
+# Usuario no-root y permisos
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001 && \
     mkdir -p /app/uploads && \
-    chown -R nodejs:nodejs /app
+    chown -R nodejs:nodejs /app && \
+    chmod -R 755 /app/node_modules
 
 USER nodejs
 

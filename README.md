@@ -598,6 +598,35 @@ curl -X POST http://localhost:3000/chat-ia/mensaje-multimodal \
 
 ## 💾 Base de Datos
 
+### 📁 Archivos de Base de Datos
+
+El directorio `backend-p1sw1/database/` contiene:
+
+- **`schema.sql`**: Schema consolidado con todas las tablas:
+  - Sistema de usuarios, salas y asistencia
+  - Chat con IA multimodal (conversaciones, mensajes, attachments, snapshots)
+  - UML 2.5 completo (clases, atributos, métodos con parámetros)
+  - Índices, triggers y constraints
+- **`seed.sql`**: Datos de prueba:
+  - 6 usuarios predefinidos (usuario1@test.com hasta usuario6@test.com, password: `123456`)
+  - 5 salas de ejemplo
+  - 11 mensajes de chat
+  - 2 archivos adjuntos (audio, imagen)
+  - 3 clases UML básicas (Persona, Estudiante, Profesor)
+- **`drop-tables.sql`**: Script para limpiar base de datos (elimina todas las tablas con CASCADE)
+
+### 🐳 Integración con Docker
+
+Los scripts se ejecutan automáticamente en el primer inicio:
+
+```yaml
+# docker-compose.yml
+postgres:
+  volumes:
+    - ./backend-p1sw1/database/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql
+    - ./backend-p1sw1/database/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+```
+
 ### Estructura de Tablas
 
 **Core del Sistema:**
@@ -609,27 +638,37 @@ sala (id_sala, nombre_sala, host_sala, informacion, fecha_creacion)
 asistencia (id_usuario, id_sala, fecha_hora)
 ```
 
-**Chat con IA:**
+**Chat con IA Multimodal:**
 ```
-sala → config_ia (modelo, temperatura, system_prompt)
+sala → config_ia (modelo, temperatura, max_tokens, system_prompt)
      ↓
-     conversacion_ia (titulo, contexto_inicial, activa)
+     conversacion_ia (titulo, contexto_inicial, activa, fecha_creacion)
        ↓
-       mensaje_chat_ia (tipo_mensaje, contenido, metadata)
+       mensaje_chat_ia (tipo_mensaje, contenido, metadata, fecha_hora)
          ↓
-         mensaje_attachment (tipo: audio/imagen, transcripcion, analisis_ia)
-         snapshot_diagrama (diagrama_json, descripcion)
+         ├─ mensaje_attachment (tipo: audio/imagen, url_file, transcripcion, analisis_ia)
+         └─ snapshot_diagrama (diagrama_json, descripcion_cambios)
 ```
 
-**UML 2.5 (Persistencia de Métodos):**
+**UML 2.5 (Persistencia de Métodos con Parámetros):**
 ```
-sala → clase_uml (cell_id, nombre_clase, x_position, y_position)
+sala → clase_uml (cell_id, nombre_clase, x_position, y_position, metadata)
          ↓
-         atributo_clase (nombre, tipo, visibility, es_static)
-         metodo_clase (nombre, tipo_retorno, visibility, es_abstract)
-           ↓
-           parametro_metodo (nombre, tipo, orden_parametro)
+         ├─ atributo_clase (nombre, tipo, visibility, es_static, valor_defecto)
+         └─ metodo_clase (nombre, tipo_retorno, visibility, es_abstract, es_static)
+              ↓
+              parametro_metodo (nombre, tipo, orden_parametro, valor_defecto)
 ```
+
+**Funcionalidades Multimodales:**
+
+- `mensaje_attachment`: Soporta adjuntos de audio e imágenes
+  - `transcripcion`: Texto extraído del audio (AssemblyAI/Whisper)
+  - `analisis_ia`: Descripción de imágenes (Claude Vision)
+- `snapshot_diagrama`: Captura estado del diagrama antes de modificaciones de IA
+  - `diagrama_json`: Estado completo en formato JointJS
+  - `descripcion_cambios`: Resumen de lo que cambió
+- `metadata` (JSONB): Información adicional flexible (tokens, duración, confianza)
 
 ### Inicializar Base de Datos
 
@@ -656,7 +695,133 @@ docker-compose exec postgres psql -U postgres -d parcial1sw1 -f /docker-entrypoi
 psql -U postgres -d parcial1sw1 -f backend-p1sw1/database/drop-tables.sql
 ```
 
-Ver más detalles en [backend-p1sw1/database/README.md](backend-p1sw1/database/README.md)
+### 🔧 Comandos Útiles
+
+**Backup y Restore:**
+```bash
+# Backup completo
+docker-compose exec postgres pg_dump -U postgres parcial1sw1 > backup.sql
+
+# Restore
+docker-compose exec -T postgres psql -U postgres parcial1sw1 < backup.sql
+
+# Backup solo datos (sin schema)
+docker-compose exec postgres pg_dump -U postgres --data-only parcial1sw1 > datos.sql
+```
+
+**Consultas SQL Útiles:**
+```sql
+-- Ver cantidad de registros en cada tabla
+SELECT 'usuario' AS tabla, COUNT(*) FROM usuario
+UNION ALL SELECT 'sala', COUNT(*) FROM sala
+UNION ALL SELECT 'asistencia', COUNT(*) FROM asistencia
+UNION ALL SELECT 'conversacion_ia', COUNT(*) FROM conversacion_ia
+UNION ALL SELECT 'mensaje_chat_ia', COUNT(*) FROM mensaje_chat_ia
+UNION ALL SELECT 'mensaje_attachment', COUNT(*) FROM mensaje_attachment
+UNION ALL SELECT 'clase_uml', COUNT(*) FROM clase_uml
+UNION ALL SELECT 'atributo_clase', COUNT(*) FROM atributo_clase
+UNION ALL SELECT 'metodo_clase', COUNT(*) FROM metodo_clase
+UNION ALL SELECT 'parametro_metodo', COUNT(*) FROM parametro_metodo;
+
+-- Ver attachments con transcripciones
+SELECT ma.id_attachment, ma.tipo_attachment, ma.transcripcion, mc.contenido 
+FROM mensaje_attachment ma
+JOIN mensaje_chat_ia mc ON ma.id_mensaje = mc.id_mensaje;
+
+-- Ver configuración de IA por sala
+SELECT s.nombre_sala, ci.modelo, ci.temperatura, ci.max_tokens
+FROM sala s
+JOIN config_ia ci ON s.id_sala = ci.id_sala;
+
+-- Ver clases UML con métodos y parámetros
+SELECT c.nombre_clase, m.nombre AS metodo, m.tipo_retorno,
+       array_agg(p.nombre || ':' || p.tipo ORDER BY p.orden_parametro) AS parametros
+FROM clase_uml c
+JOIN metodo_clase m ON c.id_clase = m.id_clase
+LEFT JOIN parametro_metodo p ON m.id_metodo = p.id_metodo
+GROUP BY c.nombre_clase, m.nombre, m.tipo_retorno;
+```
+
+### 📝 Notas de Desarrollo
+
+**Índices Optimizados:**
+```sql
+-- Búsqueda de mensajes por conversación
+CREATE INDEX idx_mensaje_chat_ia_id_conversacion ON mensaje_chat_ia(id_conversacion);
+
+-- Attachments por mensaje
+CREATE INDEX idx_mensaje_attachment_id_mensaje ON mensaje_attachment(id_mensaje);
+
+-- Clases por sala
+CREATE INDEX idx_clase_uml_id_sala ON clase_uml(id_sala);
+
+-- Búsqueda de clases por cell_id (JointJS)
+CREATE INDEX idx_clase_uml_cell_id ON clase_uml(cell_id);
+
+-- Atributos y métodos por clase
+CREATE INDEX idx_atributo_clase_id_clase ON atributo_clase(id_clase);
+CREATE INDEX idx_metodo_clase_id_clase ON metodo_clase(id_clase);
+CREATE INDEX idx_parametro_metodo_id_metodo ON parametro_metodo(id_metodo);
+
+-- Búsqueda de mensajes por tipo
+CREATE INDEX idx_mensaje_chat_ia_tipo_mensaje ON mensaje_chat_ia(tipo_mensaje);
+
+-- Configuración IA por sala (única)
+CREATE UNIQUE INDEX idx_config_ia_id_sala ON config_ia(id_sala);
+
+-- Conversaciones activas
+CREATE INDEX idx_conversacion_ia_activa ON conversacion_ia(activa);
+
+-- Snapshots por mensaje
+CREATE INDEX idx_snapshot_diagrama_id_mensaje ON snapshot_diagrama(id_mensaje);
+
+-- Asistencia por usuario y sala
+CREATE INDEX idx_asistencia_id_usuario ON asistencia(id_usuario);
+CREATE INDEX idx_asistencia_id_sala ON asistencia(id_sala);
+```
+
+**Triggers:**
+```sql
+-- Actualizar fecha_actualizacion en conversacion_ia
+CREATE TRIGGER trigger_update_conversacion_ia
+BEFORE UPDATE ON conversacion_ia
+FOR EACH ROW EXECUTE FUNCTION update_fecha_actualizacion();
+
+-- Actualizar fecha_actualizacion en clase_uml
+CREATE TRIGGER trigger_update_clase_uml
+BEFORE UPDATE ON clase_uml
+FOR EACH ROW EXECUTE FUNCTION update_fecha_actualizacion();
+```
+
+**CHECK Constraints:**
+```sql
+-- Tipo de mensaje válido
+ALTER TABLE mensaje_chat_ia 
+ADD CONSTRAINT check_tipo_mensaje 
+CHECK (tipo_mensaje IN ('user', 'assistant'));
+
+-- Tipo de attachment válido
+ALTER TABLE mensaje_attachment 
+ADD CONSTRAINT check_tipo_attachment 
+CHECK (tipo_attachment IN ('audio', 'imagen'));
+
+-- Visibility UML válida
+ALTER TABLE atributo_clase 
+ADD CONSTRAINT check_visibility_atributo 
+CHECK (visibility IN ('public', 'private', 'protected', 'package'));
+
+ALTER TABLE metodo_clase 
+ADD CONSTRAINT check_visibility_metodo 
+CHECK (visibility IN ('public', 'private', 'protected', 'package'));
+```
+
+**Enums PostgreSQL (alternativa):**
+```sql
+-- Si prefieres usar ENUMs nativos de PostgreSQL:
+CREATE TYPE tipo_mensaje_enum AS ENUM ('user', 'assistant');
+CREATE TYPE tipo_attachment_enum AS ENUM ('audio', 'imagen');
+CREATE TYPE visibility_enum AS ENUM ('public', 'private', 'protected', 'package');
+```
 
 ---
 
@@ -1680,8 +1845,7 @@ Aplicación automática al diagrama
 - 🌐 [CONFIGURACION_URLS.md](CONFIGURACION_URLS.md) - **IMPORTANTE:** Configuración de URLs, DNS y proxy reverso
 - 🚀 [DESPLIEGUE_PRODUCCION.md](DESPLIEGUE_PRODUCCION.md) - Guía completa de despliegue con SSL en `uml.jkhoster.com`
 
-### Base de Datos y Código
-- 💾 [backend-p1sw1/database/README.md](backend-p1sw1/database/README.md) - Documentación detallada de base de datos
+### Código
 - 💻 [EJEMPLO_INTEGRACION.ts](EJEMPLO_INTEGRACION.ts) - Ejemplos de código para integración
 
 ---

@@ -18,7 +18,14 @@ const routerOptions: ExtraOptions = {
 
 // Configuración temporal para Socket.IO
 // Se actualizará dinámicamente cuando se cargue config.json
-const config: SocketIoConfig = { url: 'http://localhost:3000', options: {} };
+// IMPORTANTE: Esta URL será reemplazada por ConfigService.loadConfig()
+const config: SocketIoConfig = { 
+  url: 'https://uml.jkhoster.com', 
+  options: {
+    autoConnect: false, // No conectar automáticamente hasta que se cargue la config
+    transports: ['websocket', 'polling']
+  } 
+};
 
 /**
  * Factory para inicializar la configuración antes de que arranque la app

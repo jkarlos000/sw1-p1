@@ -308,6 +308,7 @@
 /* Componente genérico */
 .flutter-component {
   animation: fadeIn 0.3s ease-in-out;
+  position: relative;
 }
 
 @keyframes fadeIn {

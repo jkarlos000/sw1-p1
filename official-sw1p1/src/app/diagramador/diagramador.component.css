@@ -102,9 +102,7 @@ body {
 
 /* 📱 Contenedor del Flutter Preview (abajo, colapsable) */
 .flutter-preview-container-wrapper {
-  height: 0;
-  min-height: 0;
-  overflow: hidden;
+  display: none; /* Oculto por defecto */
   background: #f5f5f5;
   border-top: 2px solid #e0e0e0;
   transition: all 0.3s ease-in-out;
@@ -112,6 +110,7 @@ body {
 }
 
 .flutter-preview-container-wrapper.visible {
+  display: block; /* Mostrar solo cuando hay screen */
   height: auto;
   min-height: 600px;
   overflow: visible;

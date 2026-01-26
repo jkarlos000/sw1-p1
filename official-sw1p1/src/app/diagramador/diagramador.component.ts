@@ -113,8 +113,11 @@ export default class DiagramadorComponent
       const cell = cellView.model;
       const tipo = cell.get('type');
       
+      console.log('🖱️ CLICK en celda, tipo:', tipo);
+      
       // Detectar clases UML (standard.HeaderedRectangle)
       if (tipo === 'standard.HeaderedRectangle') {
+        console.log('✅ Es una clase UML, generando Flutter screen...');
         this.onCellSelected(cell);
         
         // 📱 Generar Flutter screen automáticamente
@@ -122,7 +125,9 @@ export default class DiagramadorComponent
         
         // Hacer scroll después de un pequeño delay para que el panel se renderice
         setTimeout(() => {
+          console.log('🔄 Ejecutando detectChanges...');
           this.cdr.detectChanges();
+          console.log('🎯 flutterScreenActual:', this.flutterScreenActual);
           
           // Hacer scroll hacia el panel Flutter
           setTimeout(() => {
@@ -133,6 +138,7 @@ export default class DiagramadorComponent
         // Prevenir que se muestre el inspector tradicional
         event?.stopPropagation();
       } else {
+        console.log('❌ No es una clase UML');
         this.claseSeleccionada = null;
         this.flutterScreenActual = null;
         this.cdr.detectChanges();

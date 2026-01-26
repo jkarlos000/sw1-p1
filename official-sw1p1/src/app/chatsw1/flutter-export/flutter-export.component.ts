@@ -93,11 +93,11 @@ export class FlutterExportComponent implements OnInit {
     const navigation = this.router.getCurrentNavigation();
     if (navigation?.extras?.state) {
       const state = navigation.extras.state;
-      if (state.screens && Array.isArray(state.screens)) {
-        this.screens = state.screens;
+      if (state['screens'] && Array.isArray(state['screens'])) {
+        this.screens = state['screens'];
       }
-      if (state.projectName) {
-        this.projectName = state.projectName;
+      if (state['projectName']) {
+        this.projectName = state['projectName'];
       }
     }
   }

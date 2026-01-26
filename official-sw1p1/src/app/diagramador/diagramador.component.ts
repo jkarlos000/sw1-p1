@@ -99,7 +99,8 @@ export default class DiagramadorComponent
       new HaloService(),
       new KeyboardService(),
       this.http,
-      this.configService
+      this.configService,
+      this.route
     );
     
     // Asignar callbacks para sincronización con otros usuarios

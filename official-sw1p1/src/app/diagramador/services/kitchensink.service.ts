@@ -10,6 +10,7 @@ This Source Code Form is subject to the terms of the JointJS+ Trial License
 file, You can obtain one at https://www.jointjs.com/license
  or from the JointJS+ archive as was distributed by client IO. See the LICENSE file.*/
 import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { DirectedGraph } from '@joint/layout-directed-graph';
 import * as joint from '@joint/plus';
 import { saveAs } from 'file-saver';
@@ -66,6 +67,7 @@ class KitchenSinkService {
   onImportDiagram?: () => void;
 
   configService: ConfigService;
+  router: Router;
 
   constructor(
     el: HTMLElement,
@@ -75,10 +77,12 @@ class KitchenSinkService {
     haloService: HaloService,
     keyboardService: KeyboardService,
     http: HttpClient,
-    configService: ConfigService
+    configService: ConfigService,
+    router: Router
   ) {
     this.http = http;
     this.configService = configService;
+    this.router = router;
     this.el = el;
     // apply current joint js theme
     const view = new joint.mvc.View({ el });
@@ -1955,6 +1959,10 @@ IMPORTANTE:
         a.download = `${uuidv4().substring(0, 6)}.json`;
         a.click();
         window.URL.revokeObjectURL(url);
+      },
+      'flutterExportar:pointerclick': () => {
+        // Navigate to Flutter Export component
+        this.router.navigate(['/flutter-export']);
       },
       'jsonImportar:pointerclick': () => {
         const entrada = document.createElement('input');

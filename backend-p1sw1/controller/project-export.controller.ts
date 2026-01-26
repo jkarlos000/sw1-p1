@@ -124,6 +124,7 @@ export class ProjectExportController {
       // Generate response
       const response: ExportProjectResponse = {
         success: true,
+        projectId: projectId,
         projectName: request.projectName || 'flutter_app',
         fileSize: fileSize,
         componentCount: request.screens.reduce(
@@ -131,7 +132,7 @@ export class ProjectExportController {
           0
         ),
         screenCount: request.screens.length,
-        downloadUrl: `/api/v1/export/download/${projectId}`,
+        downloadUrl: `http://localhost:3000/api/v1/export/download/${projectId}`,
         timestamp: new Date().toISOString()
       };
 

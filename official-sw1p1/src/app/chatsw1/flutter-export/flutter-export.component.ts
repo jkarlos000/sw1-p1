@@ -227,27 +227,15 @@ export class FlutterExportComponent implements OnInit {
       this.simulateExportProgress();
 
       // Call backend endpoint
-      // const response = await this.chatService.post<ExportProjectResponse>(
-      //   '/api/v1/export/export',
-      //   request
-      // );
-
-      // Mock response for now
-      const projectId = this.generateProjectId();
-      const response: ExportProjectResponse = {
-        projectId,
-        status: 'success',
-        success: true,
-        projectName: this.projectName,
-        fileSize: 2500,
-        componentCount: this.screens.reduce(
-          (sum, s) => sum + s.components.length,
-          0
-        ),
-        screenCount: this.screens.length,
-        downloadUrl: `${this.apiUrl}/api/v1/export/download/${projectId}`,
-        timestamp: new Date().toISOString()
-      };
+      const response = await new Promise<ExportProjectResponse>((resolve, reject) => {
+        this.http.post<ExportProjectResponse>(
+          `${this.apiUrl}/api/v1/export/export`,
+          request
+        ).subscribe(
+          (data: ExportProjectResponse) => resolve(data),
+          (error: any) => reject(error)
+        );
+      });
 
       if (response.success) {
         this.handleExportSuccess(response);

@@ -173,6 +173,7 @@ export interface ExportProjectRequest {
  */
 export interface ExportProjectResponse {
   success: boolean;
+  projectId?: string;
   projectName: string;
   fileSize: number;
   componentCount: number;

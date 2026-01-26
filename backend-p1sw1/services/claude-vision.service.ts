@@ -21,8 +21,29 @@ export class ClaudeVisionService {
     try {
       console.log("🤖 Iniciando interpretación con Claude Vision...");
 
+      // Validar API Key
+      if (!process.env.ANTHROPIC_API_KEY) {
+        throw new Error(
+          "ANTHROPIC_API_KEY no está configurada. Por favor, establece la variable de entorno."
+        );
+      }
+
+      // Validar imagen
+      if (!imagenBase64 || imagenBase64.length === 0) {
+        throw new Error("Imagen vacía o no válida");
+      }
+
+      // Validar tamaño de imagen base64 (máximo 5MB)
+      const sizeInBytes = Buffer.byteLength(imagenBase64, "base64");
+      if (sizeInBytes > 5 * 1024 * 1024) {
+        throw new Error("Imagen demasiado grande (máximo 5MB)");
+      }
+
       // Prompt para Claude Vision
       const prompt = this.generarPrompt(className);
+
+      console.log("📤 Enviando imagen a Claude Vision...");
+      console.time("⏱️ Tiempo de respuesta Claude");
 
       // Llamada a Claude Vision API
       const message = await this.client.messages.create({
@@ -49,18 +70,43 @@ export class ClaudeVisionService {
         ],
       });
 
+      console.timeEnd("⏱️ Tiempo de respuesta Claude");
+
       // Extraer el contenido de texto
       const responseText =
         message.content[0].type === "text" ? message.content[0].text : "";
 
-      console.log("📝 Respuesta de Claude:", responseText.substring(0, 100) + "...");
+      if (!responseText) {
+        throw new Error("Claude Vision no retornó texto en la respuesta");
+      }
+
+      console.log("📝 Respuesta recibida, parseando JSON...");
 
       // Parsear respuesta JSON
       const resultado = this.parseRespuesta(responseText);
+      
+      console.log(
+        `✅ Interpretación completada: ${resultado.screens.length} screen(s), ${
+          resultado.screens.reduce((sum: number, s: any) => sum + s.components.length, 0)
+        } componente(s) total`
+      );
+      
       return resultado;
     } catch (error: any) {
-      console.error("❌ Error en interpretación Claude Vision:", error);
-      throw new Error(`Error interpretando mockup: ${error.message}`);
+      console.error("❌ Error en interpretación Claude Vision:", error.message);
+      
+      // Manejo específico de errores
+      if (error.message.includes("API key")) {
+        throw new Error(
+          "Error de autenticación: ANTHROPIC_API_KEY no configurada correctamente"
+        );
+      } else if (error.message.includes("rate limit")) {
+        throw new Error("Límite de tasa excedido. Intenta nuevamente en unos momentos.");
+      } else if (error.message.includes("timeout")) {
+        throw new Error("La solicitud tardó demasiado. Intenta con una imagen más simple.");
+      }
+      
+      throw error;
     }
   }
 
@@ -121,60 +167,98 @@ REGLAS IMPORTANTES:
    */
   private parseRespuesta(textoRespuesta: string): any {
     try {
+      // Log de la respuesta (primeros 200 caracteres)
+      console.log(
+        "📋 Respuesta cruda:",
+        textoRespuesta.substring(0, 200).replace(/\n/g, " ")
+      );
+
       // Buscar bloque JSON en la respuesta
       const jsonMatch = textoRespuesta.match(/```json\n?([\s\S]*?)\n?```|({[\s\S]*})/);
 
       if (!jsonMatch) {
-        console.warn("⚠️ No se encontró JSON en respuesta");
-        return {
-          screens: [
-            {
-              className: "Screen",
-              components: [],
-            },
-          ],
-        };
+        console.warn("⚠️ No se encontró JSON en respuesta, usando estructura vacía");
+        return this.crearEstructuraVacia();
       }
 
       const jsonString = jsonMatch[1] || jsonMatch[2];
-      const parsedJson = JSON.parse(jsonString);
+      
+      // Intentar parsear JSON
+      let parsedJson;
+      try {
+        parsedJson = JSON.parse(jsonString);
+      } catch (parseError) {
+        console.error("❌ Error al parsear JSON:", parseError);
+        // Intentar limpiar y parsear nuevamente
+        const jsonLimpio = jsonString
+          .replace(/,\s*}/g, "}") // Eliminar comas al final
+          .replace(/,\s*]/g, "]") // Eliminar comas en arrays
+          .trim();
+        
+        parsedJson = JSON.parse(jsonLimpio);
+      }
 
       // Validar estructura básica
       if (!parsedJson.screens || !Array.isArray(parsedJson.screens)) {
-        throw new Error("Respuesta no contiene 'screens' array");
+        console.warn("⚠️ Estructura incorrecta, creando nueva");
+        return this.crearEstructuraVacia();
       }
 
       // Validar y limpiar cada screen
-      parsedJson.screens = parsedJson.screens.map((screen: any) => {
-        return {
-          className: screen.className || "Screen",
-          components: Array.isArray(screen.components)
-            ? screen.components.map((comp: any) => ({
-                id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                type: this.validarTipo(comp.type),
-                label: comp.label || comp.text || comp.placeholder || "component",
-                position: comp.position || 1,
-                size: comp.size || "medium",
-                variant: comp.variant || "elevated",
-              }))
-            : [],
-        };
-      });
+      parsedJson.screens = parsedJson.screens
+        .filter((screen: any) => screen && screen.className) // Filtrar screens válidos
+        .map((screen: any) => {
+          const componentes = Array.isArray(screen.components)
+            ? screen.components
+                .filter((comp: any) => comp && comp.type && comp.label) // Filtrar componentes válidos
+                .map((comp: any, idx: number) => ({
+                  id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                  type: this.validarTipo(comp.type),
+                  label: String(comp.label || comp.text || comp.placeholder || `component_${idx}`).trim(),
+                  position: comp.position || idx + 1,
+                  size: comp.size || "medium",
+                  variant: comp.variant || "elevated",
+                }))
+            : [];
 
-      console.log("✅ JSON parseado correctamente:", JSON.stringify(parsedJson).substring(0, 150));
+          return {
+            className: String(screen.className).trim() || "Screen",
+            components: componentes,
+          };
+        });
+
+      // Si no hay screens después de filtrado, crear una estructura vacía
+      if (parsedJson.screens.length === 0) {
+        console.warn("⚠️ No hay screens válidos después del filtrado");
+        return this.crearEstructuraVacia();
+      }
+
+      console.log(
+        `✅ JSON parseado: ${parsedJson.screens.length} screen(s) con ${parsedJson.screens.reduce(
+          (sum: number, s: any) => sum + s.components.length,
+          0
+        )} componente(s) total`
+      );
+
       return parsedJson;
     } catch (error: any) {
-      console.error("❌ Error parseando JSON:", error.message);
-      // Retornar estructura vacía en caso de error
-      return {
-        screens: [
-          {
-            className: "Screen",
-            components: [],
-          },
-        ],
-      };
+      console.error("❌ Error fatal parseando respuesta:", error.message);
+      return this.crearEstructuraVacia();
     }
+  }
+
+  /**
+   * Crea una estructura vacía por defecto
+   */
+  private crearEstructuraVacia(): any {
+    return {
+      screens: [
+        {
+          className: "Screen",
+          components: [],
+        },
+      ],
+    };
   }
 
   /**

@@ -1,0 +1,322 @@
+/* Contenedor principal */
+.flutter-preview-container {
+  width: 100%;
+  height: 100%;
+  background: #f5f5f5;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* Header */
+.flutter-preview-header {
+  background: white;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e0e0e0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-title h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+}
+
+.flutter-icon {
+  font-size: 24px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-export {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.btn-export:hover {
+  background: #1976D2;
+}
+
+.btn-export .icon {
+  font-size: 16px;
+}
+
+/* Simulación de dispositivo móvil */
+.flutter-device {
+  margin: 20px auto;
+  width: 375px;
+  height: 667px;
+  background: white;
+  border-radius: 30px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Barra de estado del dispositivo */
+.device-status-bar {
+  height: 24px;
+  background: #1976D2;
+  color: white;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 16px;
+  font-size: 12px;
+}
+
+/* Screen de Flutter */
+.flutter-screen {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: #fafafa;
+  overflow-y: auto;
+}
+
+/* AppBar */
+.flutter-appbar {
+  height: 56px;
+  background: #2196F3;
+  color: white;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.appbar-title {
+  font-size: 20px;
+  font-weight: 500;
+}
+
+/* Body con componentes */
+.flutter-body {
+  flex: 1;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Componente genérico */
+.flutter-component {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* TextField */
+.flutter-textfield {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.textfield-label {
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.textfield-input {
+  position: relative;
+}
+
+.textfield-input input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 16px;
+  background: white;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.textfield-input input:focus {
+  outline: none;
+  border-color: #2196F3;
+  box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.1);
+}
+
+/* Buttons */
+.flutter-button {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 4px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ElevatedButton (default) */
+.flutter-button-elevated {
+  background: #2196F3;
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.flutter-button-elevated:hover {
+  background: #1976D2;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* OutlinedButton */
+.flutter-button-outlined {
+  background: transparent;
+  color: #2196F3;
+  border: 1px solid #2196F3;
+}
+
+.flutter-button-outlined:hover {
+  background: rgba(33, 150, 243, 0.1);
+}
+
+/* TextButton */
+.flutter-button-text {
+  background: transparent;
+  color: #2196F3;
+  padding: 8px 16px;
+}
+
+.flutter-button-text:hover {
+  background: rgba(33, 150, 243, 0.1);
+}
+
+/* Tamaños de componentes */
+.flutter-component-small {
+  width: 100%;
+}
+
+.flutter-component-medium {
+  width: 100%;
+}
+
+.flutter-component-large {
+  width: 100%;
+}
+
+.flutter-component-small .flutter-button {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+.flutter-component-large .flutter-button {
+  padding: 16px 32px;
+  font-size: 18px;
+}
+
+/* Icon component */
+.flutter-icon-component {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 12px;
+}
+
+.material-icons {
+  font-size: 32px;
+  color: #666;
+}
+
+/* Barra de navegación del dispositivo */
+.device-navigation-bar {
+  height: 40px;
+  background: #000;
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  color: white;
+  font-size: 20px;
+}
+
+.nav-button {
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 50%;
+  transition: background 0.2s;
+}
+
+.nav-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+/* Estado vacío */
+.flutter-preview-empty {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f5f5f5;
+}
+
+.empty-state {
+  text-align: center;
+  max-width: 400px;
+  padding: 40px;
+}
+
+.empty-icon {
+  font-size: 64px;
+  display: block;
+  margin-bottom: 20px;
+}
+
+.empty-state h3 {
+  font-size: 24px;
+  color: #333;
+  margin: 0 0 12px 0;
+}
+
+.empty-state p {
+  font-size: 16px;
+  color: #666;
+  line-height: 1.5;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .flutter-device {
+    width: 320px;
+    height: 568px;
+  }
+}

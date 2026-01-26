@@ -23,6 +23,10 @@ import {
   eliminarClaseUML,
   guardarClasesMultiples
 } from "../controller/clase-uml.controller";
+import {
+  generarCodigoDart,
+  healthCheck as flutterHealthCheck
+} from "../controller/flutter-mockup.controller";
 import { uploadMultipleFiles } from "../middleware/upload.middleware";
 import { pool } from "../database/config";
 const router = Router();
@@ -475,5 +479,15 @@ router.get("/uml/clases/:id_sala", obtenerClasesUML);
 
 // Eliminar una clase
 router.delete("/uml/clase/:id_sala/:cell_id", eliminarClaseUML);
+
+// ========================================
+// RUTAS DE FLUTTER SCREENS GENERATOR
+// ========================================
+
+// Health check del servicio Flutter
+router.get("/flutter/health", flutterHealthCheck);
+
+// Generar código Dart desde FlutterScreen
+router.post("/flutter/generar-codigo", generarCodigoDart);
 
 export default router;

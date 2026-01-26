@@ -7,7 +7,14 @@
   </div>
   <div class="app-body">
     <div class="stencil-container"></div>
+    
+    <!-- Pizarra 1: Diagrama UML -->
     <div class="paper-container"></div>
+    
+    <!-- 📱 Pizarra 2: Flutter Preview -->
+    <div class="flutter-preview-container-wrapper">
+      <app-flutter-preview [screen]="flutterScreenActual"></app-flutter-preview>
+    </div>
     
     <!-- 🆕 EDITOR UML 2.5 - Panel derecho mejorado -->
     <div class="inspector-container-custom" [class.mostrar-editor]="claseSeleccionada">

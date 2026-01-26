@@ -29,11 +29,22 @@ import { ToolbarService } from './services/toolbar.service';
 import { ConfigService } from '../common/services/config.service';
 import { ClaseUmlService } from '../common/services/clase-uml.service';
 import { UmlClassEditorComponent } from './components/uml-class-editor.component';
+import { FlutterPreviewComponent } from './flutter-preview/flutter-preview.component';
+import { FlutterScreen } from '../common/interfaces/flutter-screen.interface';
+import { FlutterGeneratorService } from './services/flutter-generator.service';
 
 @Component({
   selector: 'app-diagramador',
   standalone: true,
-  imports: [FormsModule, CommonModule, ReactiveFormsModule, RouterModule, ChatIaComponent, UmlClassEditorComponent],
+  imports: [
+    FormsModule, 
+    CommonModule, 
+    ReactiveFormsModule, 
+    RouterModule, 
+    ChatIaComponent, 
+    UmlClassEditorComponent,
+    FlutterPreviewComponent
+  ],
   templateUrl: './diagramador.component.html',
   styleUrls: ['./diagramador.component.css', './components/uml-editor.css'],
 })
@@ -50,6 +61,7 @@ export default class DiagramadorComponent
   public chatIaService = inject(ChatIaService);
   private configService = inject(ConfigService);
   private claseUmlService = inject(ClaseUmlService);
+  private flutterGeneratorService = inject(FlutterGeneratorService);
   private cdr = inject(ChangeDetectorRef);
   onListenRespUnirseReunion!: Subscription;
   onListenModificacionesDiagrama!: Subscription;
@@ -71,6 +83,9 @@ export default class DiagramadorComponent
 
   // 🆕 Propiedades para el editor UML 2.5
   public claseSeleccionada: any = null;
+
+  // 📱 Propiedad para Flutter Preview
+  public flutterScreenActual: FlutterScreen | null = null;
 
   constructor(private element: ElementRef) {}
 
@@ -103,6 +118,10 @@ export default class DiagramadorComponent
       if (tipo === 'standard.HeaderedRectangle') {
         console.log('✅ Es una clase UML, abriendo editor...');
         this.onCellSelected(cell);
+        
+        // 📱 Generar Flutter screen automáticamente
+        this.generarFlutterScreenDesdeClase(cell);
+        
         this.cdr.detectChanges(); // Forzar detección de cambios
         
         // Prevenir que se muestre el inspector tradicional
@@ -110,6 +129,7 @@ export default class DiagramadorComponent
       } else {
         console.log('❌ No es una clase, cerrando editor');
         this.claseSeleccionada = null;
+        this.flutterScreenActual = null;
         this.cdr.detectChanges();
         
         // Para enlaces y otros elementos, dejar que el sistema maneje el inspector tradicional
@@ -944,5 +964,37 @@ export default class DiagramadorComponent
 
   cerrarEditor() {
     this.claseSeleccionada = null;
+    this.flutterScreenActual = null;
+  }
+
+  // 📱 FLUTTER SCREENS GENERATOR
+
+  /**
+   * Genera Flutter Screen desde una clase UML seleccionada
+   */
+  generarFlutterScreenDesdeClase(cell: any): void {
+    console.log('📱 Iniciando generación de Flutter Screen...');
+    
+    try {
+      // Extraer datos de la clase UML
+      const classData = this.flutterGeneratorService.extraerDatosClase(cell);
+      
+      if (!classData) {
+        console.warn('⚠️ No se pudieron extraer datos de la clase');
+        return;
+      }
+
+      // Generar el FlutterScreen
+      const flutterScreen = this.flutterGeneratorService.generarDesdeClaseUML(classData);
+      
+      // Actualizar la vista
+      this.flutterScreenActual = flutterScreen;
+      this.cdr.detectChanges();
+      
+      console.log('✅ Flutter Screen generado exitosamente:', flutterScreen);
+    } catch (error) {
+      console.error('❌ Error generando Flutter Screen:', error);
+      this.flutterScreenActual = null;
+    }
   }
 }

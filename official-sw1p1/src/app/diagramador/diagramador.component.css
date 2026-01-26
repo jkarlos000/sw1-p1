@@ -85,6 +85,21 @@ body {
   height: -moz-calc(100% - 60px);
   height: -webkit-calc(100% - 60px);
   height: calc(100% - 60px);
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Dos columnas iguales */
+  grid-template-areas: 
+    "stencil paper flutter"
+    "stencil paper flutter";
+}
+
+/* 📱 Contenedor del Flutter Preview */
+.flutter-preview-container-wrapper {
+  grid-area: flutter;
+  width: 100%;
+  height: 100%;
+  overflow: auto;
+  background: #f5f5f5;
+  border-left: 2px solid #e0e0e0;
 }
 
 .app-title {
@@ -106,13 +121,10 @@ body {
 
 /*  Paper  */
 .paper-container {
-  position: absolute;
-  top: 0;
+  grid-area: paper;
   height: 100%;
   overflow: hidden;
   box-sizing: border-box;
-  left: 240px;
-  right: 240px;
 }
 
 /* Cells */
@@ -159,9 +171,7 @@ body {
 
 /*  Stencil  */
 .stencil-container {
-  position: absolute;
-  left: 0;
-  top: 0;
+  grid-area: stencil;
   width: 240px;
   height: 100%;
 }

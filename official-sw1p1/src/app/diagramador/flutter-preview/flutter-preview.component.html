@@ -1,0 +1,78 @@
+<div class="flutter-preview-container" *ngIf="screen">
+  <!-- Header con título y controles -->
+  <div class="flutter-preview-header">
+    <div class="header-title">
+      <span class="flutter-icon">📱</span>
+      <h3>Flutter Preview: {{ screen.className }}</h3>
+    </div>
+    <div class="header-actions">
+      <button class="btn-export" (click)="exportarDart()">
+        <span class="icon">📤</span>
+        Exportar .dart
+      </button>
+    </div>
+  </div>
+
+  <!-- Simulación de dispositivo móvil -->
+  <div class="flutter-device">
+    <!-- Barra superior del dispositivo -->
+    <div class="device-status-bar">
+      <span class="time">9:41</span>
+      <span class="icons">📶 📡 🔋</span>
+    </div>
+
+    <!-- Contenido de la app Flutter -->
+    <div class="flutter-screen">
+      <!-- AppBar -->
+      <div class="flutter-appbar">
+        <span class="appbar-title">{{ screen.className }}</span>
+      </div>
+
+      <!-- Body con componentes -->
+      <div class="flutter-body">
+        <div 
+          *ngFor="let component of screen.components" 
+          class="flutter-component"
+          [class]="getSizeClass(component)">
+          
+          <!-- TextField -->
+          <div *ngIf="component.type === 'TextField'" class="flutter-textfield">
+            <label class="textfield-label">{{ formatLabel(component.label) }}</label>
+            <div class="textfield-input">
+              <input type="text" [placeholder]="'Ingrese ' + component.label" readonly>
+            </div>
+          </div>
+
+          <!-- Button / ElevatedButton -->
+          <button 
+            *ngIf="isButton(component.type)" 
+            class="flutter-button"
+            [class]="getButtonClass(component)">
+            {{ formatLabel(component.label) }}
+          </button>
+
+          <!-- Icon (si se agrega en el futuro) -->
+          <div *ngIf="component.type === 'Icon'" class="flutter-icon-component">
+            <span class="material-icons">{{ component.label }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Barra inferior del dispositivo (navegación Android) -->
+    <div class="device-navigation-bar">
+      <span class="nav-button">◀</span>
+      <span class="nav-button">⚪</span>
+      <span class="nav-button">☰</span>
+    </div>
+  </div>
+</div>
+
+<!-- Estado vacío -->
+<div class="flutter-preview-empty" *ngIf="!screen">
+  <div class="empty-state">
+    <span class="empty-icon">📱</span>
+    <h3>Flutter Preview</h3>
+    <p>Haz clic en una clase del diagrama UML para generar automáticamente un Flutter Screen</p>
+  </div>
+</div>

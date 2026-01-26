@@ -192,12 +192,24 @@ export class ProjectExportController {
   private async createProjectZip(
     projectId: string,
     projectName: string,
-    generatedProject: GeneratedProject
+    generatedProject: any
   ): Promise<string> {
     const zip = new AdmZip();
 
+    // Handle both Map and object formats
+    let files: Map<string, string>;
+    if (generatedProject instanceof Map) {
+      files = generatedProject;
+    } else if (generatedProject.files instanceof Map) {
+      files = generatedProject.files;
+    } else if (typeof generatedProject.files === 'object') {
+      files = new Map(Object.entries(generatedProject.files));
+    } else {
+      throw new Error('Invalid project structure');
+    }
+
     // Add all generated files to ZIP
-    generatedProject.files.forEach((content, filePath) => {
+    files.forEach((content, filePath) => {
       zip.addFile(filePath, Buffer.from(content, 'utf8'));
     });
 
@@ -206,9 +218,9 @@ export class ProjectExportController {
       projectId,
       projectName,
       generatedAt: new Date().toISOString(),
-      fileCount: generatedProject.fileCount,
-      totalSize: generatedProject.totalSize,
-      generationTime: generatedProject.generationTime,
+      fileCount: files.size,
+      totalSize: Array.from(files.values()).reduce((sum, content) => sum + content.length, 0),
+      generationTime: generatedProject.generationTime || 0,
       version: '1.0.0'
     };
 

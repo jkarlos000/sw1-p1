@@ -8,6 +8,8 @@ import { Component, OnInit, ViewChild, TemplateRef, Optional } from '@angular/co
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
+import { HttpClient } from '@angular/common/http';
+import { ConfigService } from '../../common/services/config.service';
 
 // Local interfaces for Flutter export
 interface ComponentItem {
@@ -87,8 +89,14 @@ export class FlutterExportComponent implements OnInit {
   readonly MAX_PROJECT_NAME_LENGTH = 50;
   readonly FILE_SIZE_LIMIT = 50; // MB
 
+  private apiUrl: string = '';
+
   // Inject token for optional service
-  constructor(private router: Router) {
+  constructor(
+    private router: Router,
+    private http: HttpClient,
+    private configService: ConfigService
+  ) {
     // Get data from router state if coming from diagram export
     const navigation = this.router.getCurrentNavigation();
     if (navigation?.extras?.state) {
@@ -103,6 +111,9 @@ export class FlutterExportComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // Initialize API URL from config service
+    this.apiUrl = this.configService.apiUrl;
+    
     // If no screens were loaded from router state, use defaults
     if (this.screens.length === 0) {
       this.screens = [
@@ -234,7 +245,7 @@ export class FlutterExportComponent implements OnInit {
           0
         ),
         screenCount: this.screens.length,
-        downloadUrl: `/api/v1/export/download/${projectId}`,
+        downloadUrl: `${this.apiUrl}/api/v1/export/download/${projectId}`,
         timestamp: new Date().toISOString()
       };
 
@@ -253,12 +264,29 @@ export class FlutterExportComponent implements OnInit {
    */
   async downloadProject(downloadUrl: string): Promise<void> {
     try {
-      // Open download in new tab
-      window.open(downloadUrl, '_blank');
-
-      this.successMessage = 'Download started successfully!';
+      // Download file using HttpClient with blob response
+      this.http.get(downloadUrl, { responseType: 'blob' }).subscribe(
+        (blob: Blob) => {
+          // Create a blob URL and download
+          const blobUrl = window.URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = `${this.projectName || 'flutter_app'}.zip`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          window.URL.revokeObjectURL(blobUrl);
+          
+          this.successMessage = 'Download started successfully!';
+        },
+        (error: any) => {
+          this.errorMessage = 'Failed to download project. Please try again.';
+          console.error('Download error:', error);
+        }
+      );
     } catch (error: any) {
       this.errorMessage = 'Failed to download project. Please try again.';
+      console.error('Download error:', error);
     }
   }
 

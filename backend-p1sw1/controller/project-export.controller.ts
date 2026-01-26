@@ -16,17 +16,60 @@ import {
   GenerationError,
   GeneratedProject
 } from '../models/dart-generation.models';
+import { FlutterCodeGeneratorService } from '../services/flutter-code-generator.service';
 import { DartCodeGeneratorService } from '../services/dart-code-generator.service';
 
 export class ProjectExportController {
+  private flutterGenerator: FlutterCodeGeneratorService;
   private dartGenerator: DartCodeGeneratorService;
   private exportsDir: string;
   private readonly MAX_PROJECT_SIZE = 50 * 1024 * 1024; // 50MB
 
   constructor() {
+    this.flutterGenerator = new FlutterCodeGeneratorService();
     this.dartGenerator = new DartCodeGeneratorService();
     this.exportsDir = path.join(process.cwd(), 'exports');
     this.ensureExportsDirectory();
+  }
+
+  /**
+   * Generate Flutter project with FlutterCodeGeneratorService for screens
+   */
+  private async generateFlutterProject(screens: any[]): Promise<Map<string, string>> {
+    // Get base project structure from DartCodeGeneratorService
+    const dartProject = await this.dartGenerator.generateProjectStructure(screens);
+    
+    // Replace screen files with enhanced version using FlutterCodeGeneratorService
+    const files = new Map(dartProject);
+    
+    // Clear old screen files
+    const entriesToDelete: string[] = [];
+    files.forEach((value, key) => {
+      if (key.startsWith('lib/screens/')) {
+        entriesToDelete.push(key);
+      }
+    });
+    entriesToDelete.forEach(key => files.delete(key));
+
+    // Generate screen files with FlutterCodeGeneratorService (duplicate name handling)
+    const screenNameCount = new Map<string, number>();
+    for (const screen of screens) {
+      let screenName = this.dartGenerator['toSnakeCase'](screen.className);
+      
+      // Handle duplicate names by appending a number
+      if (screenNameCount.has(screenName)) {
+        screenNameCount.set(screenName, (screenNameCount.get(screenName) || 0) + 1);
+        screenName = `${screenName}_${screenNameCount.get(screenName)}`;
+      } else {
+        screenNameCount.set(screenName, 1);
+      }
+      
+      const screenPath = `lib/screens/${screenName}.dart`;
+      const screenCode = this.flutterGenerator.generarCodigoDart(screen);
+      files.set(screenPath, screenCode);
+    }
+
+    return files;
   }
 
   /**
@@ -90,7 +133,7 @@ export class ProjectExportController {
 
       // Generate project
       const projectId = randomUUID();
-      const generatedProject = await this.dartGenerator.generateProjectStructure(
+      const generatedProject = await this.generateFlutterProject(
         request.screens
       );
 

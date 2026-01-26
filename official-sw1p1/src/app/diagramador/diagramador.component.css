@@ -96,7 +96,7 @@ body {
   flex-shrink: 0;
   position: relative;
   display: flex;
-  height: 70vh; /* 70% del viewport - más compacto */
+  height: calc(100vh - 60px); /* Altura completa cuando no hay panel */
   min-height: 500px;
 }
 

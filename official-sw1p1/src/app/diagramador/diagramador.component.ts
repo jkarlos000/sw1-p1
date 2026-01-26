@@ -975,7 +975,11 @@ export default class DiagramadorComponent
   }
 
   cerrarFlutterPanel() {
+    // Limpiar completamente el estado
     this.flutterScreenActual = null;
+    this.claseSeleccionada = null;
+    
+    // Forzar actualización de la vista
     this.cdr.detectChanges();
     
     // Volver al diagrama

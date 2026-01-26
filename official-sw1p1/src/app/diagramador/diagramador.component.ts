@@ -88,7 +88,10 @@ export default class DiagramadorComponent
   public flutterScreenActual: FlutterScreen | null = null;
   public mostrarFlutterPanel: boolean = false;
 
-  constructor(private element: ElementRef) {}
+  constructor(
+    private element: ElementRef,
+    private router: Router
+  ) {}
 
   ngOnInit() {
     this.rappid = new RappidService(
@@ -100,7 +103,7 @@ export default class DiagramadorComponent
       new KeyboardService(),
       this.http,
       this.configService,
-      this.route
+      this.router
     );
     
     // Asignar callbacks para sincronización con otros usuarios

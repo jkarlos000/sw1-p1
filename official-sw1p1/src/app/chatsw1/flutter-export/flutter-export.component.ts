@@ -7,7 +7,7 @@
 import { Component, OnInit, ViewChild, TemplateRef, Optional } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router } from '@angular/router';
+import { Router, ActivatedRoute } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { ConfigService } from '../../common/services/config.service';
 
@@ -19,9 +19,25 @@ interface ComponentItem {
   [key: string]: any;
 }
 
+interface UMLAtributo {
+  titulo: string;
+  tipo?: string;
+  visibility?: string;
+  defaultValue?: string;
+}
+
+interface UMLMetodo {
+  nombre: string;
+  parametros?: { nombre: string; tipo: string }[];
+  tipoRetorno?: string;
+  visibility?: string;
+}
+
 interface Screen {
   className: string;
   components: ComponentItem[];
+  atributos?: UMLAtributo[];  // ⭐ From diagram
+  metodos?: UMLMetodo[];      // ⭐ From diagram
 }
 
 interface ExportProjectRequest {
@@ -94,13 +110,15 @@ export class FlutterExportComponent implements OnInit {
   // Inject token for optional service
   constructor(
     private router: Router,
+    private route: ActivatedRoute,
     private http: HttpClient,
     private configService: ConfigService
   ) {
-    // Get data from router state if coming from diagram export
+    // Try to get state in constructor (during navigation)
     const navigation = this.router.getCurrentNavigation();
     if (navigation?.extras?.state) {
       const state = navigation.extras.state;
+      console.log('🎯 Router state in constructor:', state);
       if (state['screens'] && Array.isArray(state['screens'])) {
         this.screens = state['screens'];
       }
@@ -113,6 +131,10 @@ export class FlutterExportComponent implements OnInit {
   ngOnInit(): void {
     // Initialize API URL from config service
     this.apiUrl = this.configService.apiUrl;
+    
+    // Debug: Log current screens
+    console.log('📊 Screens loaded in component:', this.screens);
+    console.log('📊 Screen count:', this.screens.length);
     
     // If no screens were loaded from router state, use defaults
     if (this.screens.length === 0) {
@@ -222,6 +244,19 @@ export class FlutterExportComponent implements OnInit {
         projectName: this.projectName,
         projectVersion: this.projectVersion
       };
+
+      // ⭐ DEBUG: Log what we're sending
+      console.log('🚀 Exporting project:', {
+        screenCount: this.screens.length,
+        projectName: this.projectName,
+        screens: this.screens.map(s => ({
+          className: s.className,
+          hasAtributos: !!s.atributos && s.atributos.length > 0,
+          atributosCount: s.atributos?.length || 0,
+          hasMetodos: !!s.metodos && s.metodos.length > 0,
+          metodosCount: s.metodos?.length || 0
+        }))
+      });
 
       // Simulate export progress
       this.simulateExportProgress();

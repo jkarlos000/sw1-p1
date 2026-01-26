@@ -44,7 +44,13 @@ export class FlutterCodeGeneratorService {
    * Genera código Dart completo desde un FlutterScreen
    */
   generarCodigoDart(screen: FlutterScreen): string {
-    console.log(`🎨 Generando código Dart para: ${screen.className}`);
+    console.log(`🎨 Generando código Dart para: ${screen.className}`, {
+      componentCount: screen.components?.length || 0,
+      atributosCount: screen.atributos?.length || 0,
+      metodosCount: screen.metodos?.length || 0,
+      atributos: screen.atributos?.map(a => `${a.titulo}:${a.tipo}`),
+      metodos: screen.metodos?.map(m => `${m.nombre}()`)
+    });
 
     const imports = this.generarImports();
     const classDeclaration = this.generarClassDeclaration(screen.className);

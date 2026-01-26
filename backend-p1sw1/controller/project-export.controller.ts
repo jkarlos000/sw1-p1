@@ -120,6 +120,20 @@ export class ProjectExportController {
     try {
       const request: ExportProjectRequest = req.body;
 
+      // ⭐ DEBUG: Log request
+      console.log('📨 Export request received:', {
+        screenCount: request.screens?.length,
+        projectName: request.projectName,
+        screens: request.screens?.map(s => ({
+          className: s.className,
+          componentCount: s.components?.length,
+          hasAtributos: !!s.atributos,
+          atributosCount: s.atributos?.length || 0,
+          hasMetodos: !!s.metodos,
+          metodosCount: s.metodos?.length || 0
+        }))
+      });
+
       // Validate request
       const validationErrors = this.validateExportRequest(request);
       if (validationErrors.length > 0) {

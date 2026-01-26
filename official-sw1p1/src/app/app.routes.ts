@@ -34,6 +34,13 @@ export const routes: Routes = [
       import('./diagramador/diagramador.component').then((m) => m.default),
   },
   {
+    path: 'flutter-export',
+    loadComponent: () =>
+      import('./chatsw1/flutter-export/flutter-export.component').then(
+        (m) => m.FlutterExportComponent
+      ),
+  },
+  {
     path: '',
     redirectTo: '/auth',
     pathMatch: 'full',

@@ -73,4 +73,8 @@ export default class SalaGeneralComponent {
       return contenido;
     });
   }
+
+  public navigateToFlutterExport(): void {
+    this.router.navigate(['/flutter-export']);
+  }
 }

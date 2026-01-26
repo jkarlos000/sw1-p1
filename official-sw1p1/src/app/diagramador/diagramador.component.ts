@@ -86,6 +86,7 @@ export default class DiagramadorComponent
 
   // 📱 Propiedad para Flutter Preview
   public flutterScreenActual: FlutterScreen | null = null;
+  public mostrarFlutterPanel: boolean = false;
 
   constructor(private element: ElementRef) {}
 
@@ -121,6 +122,7 @@ export default class DiagramadorComponent
         
         // 📱 Generar Flutter screen automáticamente
         this.generarFlutterScreenDesdeClase(cell);
+        this.mostrarFlutterPanel = true; // Mostrar panel inferior
         
         this.cdr.detectChanges(); // Forzar detección de cambios
         
@@ -964,6 +966,10 @@ export default class DiagramadorComponent
 
   cerrarEditor() {
     this.claseSeleccionada = null;
+  }
+
+  cerrarFlutterPanel() {
+    this.mostrarFlutterPanel = false;
     this.flutterScreenActual = null;
   }
 

@@ -10,11 +10,33 @@
         <span class="icon">📤</span>
         Exportar .dart
       </button>
+      <button class="btn-close" (click)="cerrarPanel()">
+        <span class="icon">✕</span>
+      </button>
     </div>
   </div>
 
-  <!-- Simulación de dispositivo móvil -->
-  <div class="flutter-device">
+  <div class="flutter-content-wrapper">
+    <!-- Paleta de componentes lateral -->
+    <div class="componentes-paleta">
+      <h4>Componentes</h4>
+      <div class="paleta-items">
+        <div 
+          *ngFor="let comp of componentesPaleta" 
+          class="paleta-item"
+          (click)="agregarComponente(comp.type)"
+          title="Click para agregar {{ comp.label }}">
+          <span class="paleta-icon">{{ comp.icon }}</span>
+          <span class="paleta-label">{{ comp.label }}</span>
+        </div>
+      </div>
+      <div class="paleta-info">
+        <small>💡 Sprint 3: Arrastra componentes al preview</small>
+      </div>
+    </div>
+
+    <!-- Simulación de dispositivo móvil -->
+    <div class="flutter-device">
     <!-- Barra superior del dispositivo -->
     <div class="device-status-bar">
       <span class="time">9:41</span>
@@ -66,6 +88,7 @@
       <span class="nav-button">☰</span>
     </div>
   </div>
+  </div> <!-- Cierre de flutter-content-wrapper -->
 </div>
 
 <!-- Estado vacío -->

@@ -11,11 +11,12 @@
 /* Header */
 .flutter-preview-header {
   background: white;
-  padding: 16px 20px;
+  padding: 12px 20px;
   border-bottom: 1px solid #e0e0e0;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-shrink: 0;
 }
 
 .header-title {
@@ -61,6 +62,100 @@
 
 .btn-export .icon {
   font-size: 16px;
+}
+
+.btn-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: #f44336;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: background 0.2s;
+}
+
+.btn-close:hover {
+  background: #d32f2f;
+}
+
+/* Wrapper para contenido (paleta + dispositivo) */
+.flutter-content-wrapper {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+/* Paleta de componentes lateral */
+.componentes-paleta {
+  width: 200px;
+  background: white;
+  border-right: 1px solid #e0e0e0;
+  padding: 16px;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.componentes-paleta h4 {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.paleta-items {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.paleta-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #f9f9f9;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.paleta-item:hover {
+  background: #2196F3;
+  border-color: #2196F3;
+  color: white;
+  transform: translateX(4px);
+}
+
+.paleta-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.paleta-label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.paleta-info {
+  margin-top: 20px;
+  padding: 12px;
+  background: #fff3cd;
+  border-radius: 4px;
+  border-left: 3px solid #ffc107;
+}
+
+.paleta-info small {
+  font-size: 11px;
+  color: #856404;
+  line-height: 1.4;
 }
 
 /* Simulación de dispositivo móvil */

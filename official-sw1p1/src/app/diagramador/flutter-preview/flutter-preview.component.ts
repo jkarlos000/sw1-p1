@@ -1,4 +1,4 @@
-import { Component, Input, OnInit } from '@angular/core';
+import { Component, Input, OnInit, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { HttpClient } from '@angular/common/http';
 import { FlutterScreen, FlutterComponent } from '../../common/interfaces/flutter-screen.interface';
@@ -13,6 +13,16 @@ import { ConfigService } from '../../common/services/config.service';
 })
 export class FlutterPreviewComponent implements OnInit {
   @Input() screen: FlutterScreen | null = null;
+  @Output() cerrar = new EventEmitter<void>();
+
+  // Paleta de componentes disponibles
+  public componentesPaleta = [
+    { type: 'TextField', icon: '📝', label: 'TextField' },
+    { type: 'ElevatedButton', icon: '🔘', label: 'Button' },
+    { type: 'TextButton', icon: '🔗', label: 'Text Button' },
+    { type: 'Icon', icon: '⭐', label: 'Icon' },
+    { type: 'Container', icon: '📦', label: 'Container' }
+  ];
 
   constructor(
     private http: HttpClient,
@@ -106,5 +116,21 @@ export class FlutterPreviewComponent implements OnInit {
    */
   formatLabel(label: string): string {
     return label.charAt(0).toUpperCase() + label.slice(1);
+  }
+
+  /**
+   * Cerrar panel de Flutter Preview
+   */
+  cerrarPanel(): void {
+    this.cerrar.emit();
+  }
+
+  /**
+   * Agregar componente desde la paleta (placeholder para futura implementación)
+   */
+  agregarComponente(tipo: string): void {
+    console.log('➕ Agregar componente:', tipo);
+    // TODO: Implementar drag & drop o click para agregar
+    alert(`Funcionalidad de agregar ${tipo} en desarrollo (Sprint 3)`);
   }
 }

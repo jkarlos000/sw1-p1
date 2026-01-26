@@ -15,6 +15,8 @@ import { ConfigService } from '../../common/services/config.service';
   styleUrls: ['./flutter-preview.component.css']
 })
 export class FlutterPreviewComponent implements OnInit {
+  public historialEstados: FlutterScreen[] = [];
+  public indiceHistorial: number = -1;
   public paletaDraggedType: FlutterComponent['type'] | null = null;
   public selectedComponentIndex: number | null = null;
   public selectedComponent: FlutterComponent | null = null;
@@ -23,6 +25,8 @@ export class FlutterPreviewComponent implements OnInit {
   public modoEdicion: boolean = false;
   public draggedIndex: number | null = null;
   public dragOverIndex: number | null = null;
+  public mostrarCodigoDart: boolean = false;
+  public codigoDartGenerado: string = '';
   public componentesPaleta = [
     { type: 'TextField', icon: '📝', label: 'TextField' },
     { type: 'ElevatedButton', icon: '🔘', label: 'Button' },
@@ -38,6 +42,76 @@ export class FlutterPreviewComponent implements OnInit {
 
   ngOnInit(): void {
     console.log('📱 Flutter Preview Component iniciado');
+    if (this.screen) {
+      this.guardarEstado();
+    }
+  }
+
+  /**
+   * Guarda el estado actual en el historial
+   */
+  private guardarEstado(): void {
+    if (!this.screen) return;
+    // Eliminar cualquier estado futuro si estamos en el medio del historial
+    this.historialEstados = this.historialEstados.slice(0, this.indiceHistorial + 1);
+    // Hacer una copia profunda del screen actual
+    const estadoCopia = JSON.parse(JSON.stringify(this.screen));
+    this.historialEstados.push(estadoCopia);
+    this.indiceHistorial++;
+    console.log('💾 Estado guardado en historial. Total:', this.historialEstados.length);
+    // Regenerar código Dart si está visible
+    if (this.mostrarCodigoDart) {
+      this.generarCodigoDart();
+    }
+  }
+
+  /**
+   * Guarda el estado cuando se edita el nombre de la pantalla
+   */
+  public guardarEstadoEdicion(): void {
+    this.guardarEstado();
+    console.log('📝 Nombre de pantalla actualizado:', this.screen?.className);
+  }
+
+  /**
+   * Deshacer última acción (Ctrl+Z)
+   */
+  deshacer(): void {
+    if (this.indiceHistorial > 0) {
+      this.indiceHistorial--;
+      this.screen = JSON.parse(JSON.stringify(this.historialEstados[this.indiceHistorial]));
+      this.selectedComponent = null;
+      this.selectedComponentIndex = null;
+      console.log('↩️ Deshacer - Índice:', this.indiceHistorial);
+    }
+  }
+
+  /**
+   * Rehacer última acción (Ctrl+Y)
+   */
+  rehacer(): void {
+    if (this.indiceHistorial < this.historialEstados.length - 1) {
+      this.indiceHistorial++;
+      this.screen = JSON.parse(JSON.stringify(this.historialEstados[this.indiceHistorial]));
+      this.selectedComponent = null;
+      this.selectedComponentIndex = null;
+      console.log('↪️ Rehacer - Índice:', this.indiceHistorial);
+    }
+  }
+
+  /**
+   * Escucha atajos de teclado (Ctrl+Z, Ctrl+Y)
+   */
+  onKeyDown(event: KeyboardEvent): void {
+    if (event.ctrlKey || event.metaKey) {
+      if (event.key === 'z' || event.key === 'Z') {
+        event.preventDefault();
+        this.deshacer();
+      } else if (event.key === 'y' || event.key === 'Y') {
+        event.preventDefault();
+        this.rehacer();
+      }
+    }
   }
 
   /**
@@ -49,6 +123,175 @@ export class FlutterPreviewComponent implements OnInit {
   }
 
   /**
+   * Toggle para mostrar/ocultar vista previa de código Dart
+   */
+  toggleCodigoDart(): void {
+    this.mostrarCodigoDart = !this.mostrarCodigoDart;
+    if (this.mostrarCodigoDart) {
+      this.generarCodigoDart();
+    }
+  }
+
+  /**
+   * Genera el código Dart basado en la pantalla actual
+   */
+  private generarCodigoDart(): void {
+    if (!this.screen) return;
+
+    const className = this.screen.className || 'MiPantalla';
+    const components = this.screen.components || [];
+
+    // Generar imports
+    let codigo = `import 'package:flutter/material.dart';\n\n`;
+
+    // Generar clase principal
+    codigo += `class ${className}Screen extends StatefulWidget {\n`;
+    codigo += `  const ${className}Screen({Key? key}) : super(key: key);\n\n`;
+    codigo += `  @override\n`;
+    codigo += `  State<${className}Screen> createState() => _${className}ScreenState();\n`;
+    codigo += `}\n\n`;
+
+    // Generar State
+    codigo += `class _${className}ScreenState extends State<${className}Screen> {\n`;
+
+    // Agregar controllers si hay TextFields
+    const hasTextFields = components.some(c => c.type === 'TextField');
+    if (hasTextFields) {
+      codigo += `  late TextEditingController _controller;\n\n`;
+      codigo += `  @override\n`;
+      codigo += `  void initState() {\n`;
+      codigo += `    super.initState();\n`;
+      codigo += `    _controller = TextEditingController();\n`;
+      codigo += `  }\n\n`;
+      codigo += `  @override\n`;
+      codigo += `  void dispose() {\n`;
+      codigo += `    _controller.dispose();\n`;
+      codigo += `    super.dispose();\n`;
+      codigo += `  }\n\n`;
+    }
+
+    // Build method
+    codigo += `  @override\n`;
+    codigo += `  Widget build(BuildContext context) {\n`;
+    codigo += `    return Scaffold(\n`;
+    codigo += `      appBar: AppBar(\n`;
+    codigo += `        title: const Text('${className}'),\n`;
+    codigo += `        backgroundColor: Colors.blue,\n`;
+    codigo += `      ),\n`;
+    codigo += `      body: Padding(\n`;
+    codigo += `        padding: const EdgeInsets.all(16.0),\n`;
+    codigo += `        child: SingleChildScrollView(\n`;
+    codigo += `          child: Column(\n`;
+    codigo += `            children: [\n`;
+
+    // Agregar componentes
+    components.forEach((comp, index) => {
+      const padding = '              ';
+      const size = this.getSizeClassValue(comp.size || 'medium');
+
+      switch (comp.type) {
+        case 'TextField':
+          codigo += `${padding}TextField(\n`;
+          codigo += `${padding}  controller: _controller,\n`;
+          codigo += `${padding}  decoration: InputDecoration(\n`;
+          codigo += `${padding}    labelText: '${comp.label}',\n`;
+          codigo += `${padding}    hintText: '${comp.placeholder || 'Ingrese ' + comp.label}',\n`;
+          codigo += `${padding}    border: OutlineInputBorder(),\n`;
+          codigo += `${padding}  ),\n`;
+          codigo += `${padding}),\n`;
+          if (index < components.length - 1) codigo += `${padding}const SizedBox(height: 16),\n`;
+          break;
+
+        case 'ElevatedButton':
+        case 'Button':
+          codigo += `${padding}ElevatedButton(\n`;
+          codigo += `${padding}  onPressed: () {},\n`;
+          if (comp.color && comp.color !== '#2196F3') {
+            codigo += `${padding}  style: ElevatedButton.styleFrom(\n`;
+            codigo += `${padding}    backgroundColor: Color(0x${comp.color.substring(1)}),\n`;
+            codigo += `${padding}  ),\n`;
+          }
+          codigo += `${padding}  child: Text('${comp.label}'),\n`;
+          codigo += `${padding}),\n`;
+          if (index < components.length - 1) codigo += `${padding}const SizedBox(height: 16),\n`;
+          break;
+
+        case 'TextButton':
+          codigo += `${padding}TextButton(\n`;
+          codigo += `${padding}  onPressed: () {},\n`;
+          if (comp.color && comp.color !== '#2196F3') {
+            codigo += `${padding}  style: TextButton.styleFrom(\n`;
+            codigo += `${padding}    foregroundColor: Color(0x${comp.color.substring(1)}),\n`;
+            codigo += `${padding}  ),\n`;
+          }
+          codigo += `${padding}  child: Text('${comp.label}'),\n`;
+          codigo += `${padding}),\n`;
+          if (index < components.length - 1) codigo += `${padding}const SizedBox(height: 16),\n`;
+          break;
+
+        case 'Icon':
+          codigo += `${padding}const Icon(Icons.star, size: 40, color: Colors.yellow),\n`;
+          if (index < components.length - 1) codigo += `${padding}const SizedBox(height: 16),\n`;
+          break;
+
+        case 'Container':
+          codigo += `${padding}Container(\n`;
+          codigo += `${padding}  width: double.infinity,\n`;
+          codigo += `${padding}  height: ${size},\n`;
+          codigo += `${padding}  decoration: BoxDecoration(\n`;
+          codigo += `${padding}    color: Colors.grey[300],\n`;
+          codigo += `${padding}    borderRadius: BorderRadius.circular(8),\n`;
+          codigo += `${padding}  ),\n`;
+          codigo += `${padding}  child: Center(child: Text('${comp.label}')),\n`;
+          codigo += `${padding}),\n`;
+          if (index < components.length - 1) codigo += `${padding}const SizedBox(height: 16),\n`;
+          break;
+
+        default:
+          codigo += `${padding}// ${comp.type}: ${comp.label}\n`;
+      }
+    });
+
+    // Cerrar Column
+    codigo += `            ],\n`;
+    codigo += `          ),\n`;
+    codigo += `        ),\n`;
+    codigo += `      ),\n`;
+    codigo += `    );\n`;
+    codigo += `  }\n`;
+    codigo += `}\n`;
+
+    this.codigoDartGenerado = codigo;
+    console.log('📝 Código Dart generado para:', className);
+  }
+
+  /**
+   * Obtiene el valor numérico del tamaño para Dart
+   */
+  private getSizeClassValue(size: string): number {
+    const sizeMap: { [key: string]: number } = {
+      small: 80,
+      medium: 150,
+      large: 250
+    };
+    return sizeMap[size] || 150;
+  }
+
+  /**
+   * Copia el código Dart al portapapeles
+   */
+  copiarCodigoAlPortapapeles(): void {
+    if (!this.codigoDartGenerado) return;
+    navigator.clipboard.writeText(this.codigoDartGenerado).then(() => {
+      console.log('✅ Código copiado al portapapeles');
+      alert('Código Dart copiado al portapapeles');
+    }).catch(err => {
+      console.error('❌ Error al copiar:', err);
+      alert('Error al copiar el código');
+    });
+  }
+
+  /**
    * Inicia el arrastre de un componente
    */
   onDragStart(event: DragEvent, index: number): void {
@@ -57,7 +300,12 @@ export class FlutterPreviewComponent implements OnInit {
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('text/html', index.toString());
+      // Opcional: set drag image
+      if (event.target instanceof HTMLElement) {
+        event.dataTransfer.setDragImage(event.target, 0, 0);
+      }
     }
+    event.stopPropagation();
   }
 
   /**
@@ -65,6 +313,7 @@ export class FlutterPreviewComponent implements OnInit {
    */
   onDragOver(event: DragEvent, index: number): void {
     event.preventDefault();
+    event.stopPropagation();
     if (event.dataTransfer) {
       event.dataTransfer.dropEffect = 'move';
     }
@@ -76,6 +325,7 @@ export class FlutterPreviewComponent implements OnInit {
    */
   onDrop(event: DragEvent, dropIndex: number): void {
     event.preventDefault();
+    event.stopPropagation();
     if (this.draggedIndex === null || !this.screen) {
       return;
     }
@@ -113,6 +363,7 @@ export class FlutterPreviewComponent implements OnInit {
     // Limpiar estado
     this.draggedIndex = null;
     this.dragOverIndex = null;
+    this.guardarEstado();
   }
 
   /**
@@ -152,6 +403,19 @@ export class FlutterPreviewComponent implements OnInit {
       text: 'flutter-button-text'
     };
     return variantMap[component.variant || 'elevated'];
+  }
+
+  /**
+   * Obtiene el estilo de color para un botón
+   */
+  getButtonStyle(component: FlutterComponent): { [key: string]: string } {
+    if (!component.color || !this.isButton(component.type)) {
+      return {};
+    }
+    return {
+      'background-color': component.color,
+      'border-color': component.color
+    };
   }
 
   /**
@@ -267,6 +531,7 @@ export class FlutterPreviewComponent implements OnInit {
    */
   onPreviewDragOver(event: DragEvent): void {
     event.preventDefault();
+    event.stopPropagation();
     if (event.dataTransfer) {
       event.dataTransfer.dropEffect = 'copy';
     }
@@ -277,9 +542,11 @@ export class FlutterPreviewComponent implements OnInit {
    */
   onPreviewDrop(event: DragEvent): void {
     event.preventDefault();
+    event.stopPropagation();
     if (!this.paletaDraggedType || !this.screen) return;
     this.agregarComponente(this.paletaDraggedType);
     this.paletaDraggedType = null;
+    this.guardarEstado();
   }
 
   /**
@@ -290,5 +557,40 @@ export class FlutterPreviewComponent implements OnInit {
     this.screen.components.splice(this.selectedComponentIndex, 1);
     this.selectedComponent = null;
     this.selectedComponentIndex = null;
+    this.guardarEstado();
+  }
+
+  /**
+   * Duplica el componente seleccionado
+   */
+  duplicarComponente(): void {
+    if (!this.screen || this.selectedComponentIndex === null || !this.selectedComponent) return;
+    
+    // Crear una copia profunda del componente seleccionado
+    const componenteCopia: FlutterComponent = JSON.parse(JSON.stringify(this.selectedComponent));
+    
+    // Asignar un nuevo ID único
+    componenteCopia.id = Date.now().toString() + Math.random().toString(36).substr(2, 9);
+    
+    // Actualizar el label para indicar que es una copia
+    if (!componenteCopia.label.includes('(copia)')) {
+      componenteCopia.label = componenteCopia.label + ' (copia)';
+    }
+    
+    // Insertar después del componente actual
+    const indexNuevo = this.selectedComponentIndex + 1;
+    this.screen.components.splice(indexNuevo, 0, componenteCopia);
+    
+    // Actualizar posiciones
+    this.screen.components.forEach((comp, idx) => {
+      comp.position = idx + 1;
+    });
+    
+    // Seleccionar el nuevo componente duplicado
+    this.selectedComponentIndex = indexNuevo;
+    this.selectedComponent = componenteCopia;
+    
+    console.log('📋 Componente duplicado:', componenteCopia.label);
+    this.guardarEstado();
   }
 }

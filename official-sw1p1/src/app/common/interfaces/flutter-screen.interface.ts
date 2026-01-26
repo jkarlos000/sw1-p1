@@ -15,6 +15,7 @@ export interface FlutterComponent {
   position: number;
   size?: 'small' | 'medium' | 'large';
   variant?: 'elevated' | 'outlined' | 'text';
+  color?: string;
   customProperties?: Record<string, any>;
   placeholder?: string;
 }

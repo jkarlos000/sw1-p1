@@ -114,7 +114,7 @@ export class FlutterGeneratorService {
                 name: match[2],
                 returnType: match[4] || 'void',
                 visibility: this.mapVisibility(match[1]),
-                parameters: match[3] ? match[3].split(',').map(p => p.trim()) : []
+                parameters: match[3] ? match[3].split(',').map((p: string) => p.trim()) : []
               });
             }
           }

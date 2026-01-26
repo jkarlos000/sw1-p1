@@ -67,16 +67,20 @@ export class FlutterGeneratorService {
 
   /**
    * Extrae datos de clase UML desde un elemento JointJS
+   * Actualizado: Ahora soporta standard.HeaderedRectangle
    */
   extraerDatosClase(cell: any): UMLClassData | null {
     try {
       const tipo = cell.get('type');
+      console.log('🔍 Verificando tipo de celda:', tipo);
       
       // Verificar que sea una clase UML (HeaderedRectangle es el tipo usado en este proyecto)
       if (tipo !== 'standard.HeaderedRectangle') {
-        console.warn('⚠️ El elemento no es una clase UML HeaderedRectangle:', tipo);
+        console.warn('⚠️ El elemento no es una clase UML HeaderedRectangle. Tipo recibido:', tipo);
         return null;
       }
+
+      console.log('✅ Tipo correcto! Extrayendo datos...');
 
       // Extraer nombre del header
       const nombre = cell.attr('headerText/text') || cell.attr('header/text') || 'Clase';

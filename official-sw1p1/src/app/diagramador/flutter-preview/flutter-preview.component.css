@@ -276,15 +276,33 @@
 
 .flutter-component.editable {
   position: relative;
-  cursor: pointer;
+  cursor: grab;
   transition: all 0.2s;
   border: 2px dashed transparent;
+}
+
+.flutter-component.editable:active {
+  cursor: grabbing;
 }
 
 .flutter-component.editable:hover {
   border-color: #FF9800;
   background: rgba(255, 152, 0, 0.1);
   transform: scale(1.02);
+}
+
+/* Estados de drag & drop */
+.flutter-component.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+  transform: scale(0.95);
+}
+
+.flutter-component.drag-over {
+  border-color: #4CAF50 !important;
+  background: rgba(76, 175, 80, 0.2) !important;
+  border-style: solid !important;
+  transform: scale(1.05);
 }
 
 /* Componente genérico */

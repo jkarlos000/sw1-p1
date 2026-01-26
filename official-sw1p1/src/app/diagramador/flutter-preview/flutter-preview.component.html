@@ -67,10 +67,18 @@
         </div>
         
         <div 
-          *ngFor="let component of screen.components" 
+          *ngFor="let component of screen.components; let i = index" 
           class="flutter-component"
           [class]="getSizeClass(component)"
-          [class.editable]="modoEdicion">
+          [class.editable]="modoEdicion"
+          [class.dragging]="draggedIndex === i"
+          [class.drag-over]="dragOverIndex === i"
+          [draggable]="modoEdicion"
+          (dragstart)="onDragStart($event, i)"
+          (dragover)="onDragOver($event, i)"
+          (drop)="onDrop($event, i)"
+          (dragleave)="onDragLeave($event)"
+          (dragend)="onDragEnd($event)">
           
           <!-- TextField -->
           <div *ngIf="component.type === 'TextField'" class="flutter-textfield">

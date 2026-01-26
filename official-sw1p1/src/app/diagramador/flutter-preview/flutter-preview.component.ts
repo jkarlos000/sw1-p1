@@ -18,6 +18,10 @@ export class FlutterPreviewComponent implements OnInit {
   // 🎨 Modo de edición
   public modoEdicion: boolean = false;
 
+  // 👋 Drag & Drop
+  private draggedIndex: number | null = null;
+  public dragOverIndex: number | null = null;
+
   // Paleta de componentes disponibles
   public componentesPaleta = [
     { type: 'TextField', icon: '📝', label: 'TextField' },
@@ -42,6 +46,82 @@ export class FlutterPreviewComponent implements OnInit {
   toggleModoEdicion(): void {
     this.modoEdicion = !this.modoEdicion;
     console.log('🎨 Modo edición:', this.modoEdicion ? 'ACTIVADO' : 'DESACTIVADO');
+  }
+
+  /**
+   * Inicia el arrastre de un componente
+   */
+  onDragStart(event: DragEvent, index: number): void {
+    this.draggedIndex = index;
+    console.log('👋 Arrastrando componente:', index);
+    
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/html', index.toString());
+    }
+  }
+
+  /**
+   * Maneja cuando se arrastra sobre otro componente
+   */
+  onDragOver(event: DragEvent, index: number): void {
+    event.preventDefault();
+    
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+    
+    this.dragOverIndex = index;
+  }
+
+  /**
+   * Maneja cuando se suelta un componente
+   */
+  onDrop(event: DragEvent, dropIndex: number): void {
+    event.preventDefault();
+    
+    if (this.draggedIndex === null || !this.screen) {
+      return;
+    }
+
+    // Reordenar componentes
+    const components = [...this.screen.components];
+    const draggedComponent = components[this.draggedIndex];
+    
+    // Eliminar del índice original
+    components.splice(this.draggedIndex, 1);
+    
+    // Insertar en el nuevo índice
+    components.splice(dropIndex, 0, draggedComponent);
+    
+    // Actualizar posiciones
+    components.forEach((comp, idx) => {
+      comp.position = idx + 1;
+    });
+    
+    // Actualizar el screen
+    this.screen.components = components;
+    
+    console.log('✅ Componente reordenado de', this.draggedIndex, 'a', dropIndex);
+    
+    // Limpiar estado
+    this.draggedIndex = null;
+    this.dragOverIndex = null;
+  }
+
+  /**
+   * Maneja cuando el arrastre sale del componente
+   */
+  onDragLeave(event: DragEvent): void {
+    this.dragOverIndex = null;
+  }
+
+  /**
+   * Maneja cuando termina el arrastre
+   */
+  onDragEnd(event: DragEvent): void {
+    this.draggedIndex = null;
+    this.dragOverIndex = null;
   }
 
   /**

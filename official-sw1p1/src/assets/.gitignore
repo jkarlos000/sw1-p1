@@ -1,0 +1,11 @@
+# Archivos de configuración local
+# Solo config.json se debe copiar al build de producción
+# config.local.json es solo para desarrollo local
+# config.example.json es plantilla para nuevos desarrolladores
+
+# IMPORTANTE: 
+# El angular.json ya está configurado para IGNORAR estos archivos en el build:
+# - config.local.json (desarrollo local)
+# - config.example.json (plantilla)
+#
+# Solo se copia config.json al dist/ cuando se hace npm run build

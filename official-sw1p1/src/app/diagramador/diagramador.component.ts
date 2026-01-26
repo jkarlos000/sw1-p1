@@ -450,7 +450,10 @@ export default class DiagramadorComponent
         switch (accion.tipo) {
           case 'limpiar':
             this.rappid.graph.clear();
+            console.log('🗑️ Diagrama limpiado completamente');
+            break;
 
+          case 'eliminar':
             if (accion.elemento === 'clase') {
               this.eliminarClasePorNombre(accion.nombre);
             } else if (accion.elemento === 'relacion') {
@@ -486,17 +489,37 @@ export default class DiagramadorComponent
   }
 
   private eliminarClasePorNombre(nombre: string): void {
+    console.log(`🗑️ Buscando clase "${nombre}" para eliminar...`);
     const elementos = this.rappid.graph.getElements();
+    console.log(`📊 Total de elementos en el grafo: ${elementos.length}`);
+    
+    // Listar todas las clases para debug
+    elementos.forEach((el: any) => {
+      const nombreClase = el.attr('headerText/text') || el.attr('label/text') || el.prop('name');
+      console.log(`  - Elemento encontrado: "${nombreClase}" (type: ${el.get('type')})`);
+    });
+    
     const elemento = elementos.find((el: any) => {
       const nombreClase = el.attr('headerText/text') || el.attr('label/text') || el.prop('name');
-      return nombreClase === nombre;
+      // Comparación case-insensitive y sin espacios extra
+      return nombreClase?.trim().toLowerCase() === nombre?.trim().toLowerCase();
     });
 
     if (elemento) {
       elemento.remove();
-      console.log(`✅ Clase "${nombre}" eliminada`);
+      console.log(`✅ Clase "${nombre}" eliminada exitosamente`);
+      
+      // También eliminar sus relaciones (links conectados)
+      const linksConectados = this.rappid.graph.getConnectedLinks(elemento);
+      linksConectados.forEach((link: any) => {
+        link.remove();
+        console.log(`🔗 Relación conectada eliminada`);
+      });
     } else {
-      console.warn(`⚠️ Clase "${nombre}" no encontrada`);
+      console.warn(`⚠️ Clase "${nombre}" no encontrada en el diagrama`);
+      console.warn(`   Nombres disponibles: ${elementos.map((el: any) => 
+        el.attr('headerText/text') || el.attr('label/text') || el.prop('name')
+      ).join(', ')}`);
     }
   }
 

@@ -193,9 +193,15 @@ Formato de comandos:
   ]
 }
 
+⚠️ REGLAS CRÍTICAS PARA ELIMINAR:
+- Cuando uses "tipo": "eliminar", DEBES usar el nombre EXACTO de la clase como aparece en "CLASES EXISTENTES"
+- RESPETA mayúsculas, minúsculas y espacios en los nombres
+- Si la clase se llama "Articulo" en el contexto, usa EXACTAMENTE "Articulo", NO "Artículo" ni "articulo"
+- Si hay duplicados, elimina UNO y menciona cuál mantienes
+
 IMPORTANTE:
-- La acción "limpiar" elimina TODAS las clases y relaciones del diagrama. Úsala al inicio si el usuario pide crear un diagrama nuevo.
-- Usa "tipo": "limpiar" sin otros parámetros
+- "limpiar" elimina TODO el diagrama (úsalo solo si el usuario pide empezar de cero)
+- "eliminar" elimina UN elemento específico (usa el nombre exacto del contexto)
 - SIEMPRE incluye [MODIFICAR_DIAGRAMA] seguido del JSON en un bloque de código
 - Usa nombres de clases descriptivos y en formato PascalCase
 - Los atributos deben empezar con "-" para privados, "+" para públicos`
@@ -244,17 +250,17 @@ Si necesitas modificar el diagrama, DEBES usar el siguiente formato:
 \`\`\`json
 {
   "acciones": [
-    {"tipo": "limpiar"},
-    {"tipo": "agregar", "elemento": "clase", "nombre": "NombreClase", "atributos": ["-id:integer", "-nombre:text"]},
-    {"tipo": "agregar", "elemento": "relacion", "origen": "ClaseA", "destino": "ClaseB", "cardinalidad": "1...*"}
+    {"tipo": "eliminar", "elemento": "clase", "nombre": "Articulo"},
+    {"tipo": "agregar", "elemento": "clase", "nombre": "NombreClase", "atributos": ["-id:integer", "-nombre:text"]}
   ]
 }
 \`\`\`
 
-- Usa "tipo": "limpiar" al inicio si necesitas borrar todo el diagrama
-- Luego agrega todas las clases necesarias
-- Finalmente agrega las relaciones entre clases
-- SIEMPRE usa el marcador [MODIFICAR_DIAGRAMA] seguido del JSON en un bloque de código
+⚠️ REGLAS CRÍTICAS:
+- Para ELIMINAR: Usa el nombre EXACTO de "CLASES EXISTENTES" (respeta mayúsculas)
+- Para LIMPIAR TODO: {"tipo": "limpiar"}
+- SIEMPRE incluye [MODIFICAR_DIAGRAMA] seguido del JSON
+- Ejemplo: Si arriba dice 'Clase "Articulo"', usa "nombre": "Articulo"
 `
                 }
             ];
@@ -302,17 +308,17 @@ Si necesitas modificar el diagrama, DEBES usar el siguiente formato:
 \`\`\`json
 {
   "acciones": [
-    {"tipo": "limpiar"},
-    {"tipo": "agregar", "elemento": "clase", "nombre": "NombreClase", "atributos": ["-id:integer", "-nombre:text"]},
-    {"tipo": "agregar", "elemento": "relacion", "origen": "ClaseA", "destino": "ClaseB", "cardinalidad": "1...*"}
+    {"tipo": "eliminar", "elemento": "clase", "nombre": "Articulo"},
+    {"tipo": "agregar", "elemento": "clase", "nombre": "NombreClase", "atributos": ["-id:integer", "-nombre:text"]}
   ]
 }
 \`\`\`
 
-- Usa "tipo": "limpiar" al inicio si necesitas borrar todo el diagrama
-- Luego agrega todas las clases necesarias
-- Finalmente agrega las relaciones entre clases
-- SIEMPRE usa el marcador [MODIFICAR_DIAGRAMA] seguido del JSON en un bloque de código
+⚠️ REGLAS CRÍTICAS:
+- Para ELIMINAR: Usa el nombre EXACTO de "CLASES EXISTENTES" (respeta mayúsculas)
+- Para LIMPIAR TODO: {"tipo": "limpiar"}
+- SIEMPRE incluye [MODIFICAR_DIAGRAMA] seguido del JSON
+- Ejemplo: Si arriba dice 'Clase "Articulo"', usa "nombre": "Articulo"
 `
             });
         }

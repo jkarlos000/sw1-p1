@@ -114,6 +114,8 @@ export default class DiagramadorComponent
       const cell = cellView.model;
       const tipo = cell.get('type');
       console.log('📦 Tipo de celda:', tipo);
+      console.log('🔍 Estado actual mostrarFlutterPanel:', this.mostrarFlutterPanel);
+      console.log('🔍 Estado actual flutterScreenActual:', this.flutterScreenActual);
       
       // Detectar clases UML (standard.HeaderedRectangle)
       if (tipo === 'standard.HeaderedRectangle') {
@@ -125,12 +127,16 @@ export default class DiagramadorComponent
         
         // Mostrar panel y hacer scroll después de un pequeño delay
         setTimeout(() => {
+          console.log('⏰ Ejecutando setTimeout para activar panel...');
           this.mostrarFlutterPanel = true;
           console.log('📱 Panel Flutter activado:', this.mostrarFlutterPanel);
+          console.log('🎯 Flutter Screen actual:', this.flutterScreenActual);
           this.cdr.detectChanges();
+          console.log('🔄 ChangeDetectorRef ejecutado');
           
           // Hacer scroll hacia el panel Flutter
           setTimeout(() => {
+            console.log('⏰ Ejecutando setTimeout para scroll...');
             this.scrollToFlutterPanel();
           }, 350); // Esperar a que termine la animación
         }, 100);

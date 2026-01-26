@@ -45,48 +45,23 @@
       <div class="navigator-container"></div>
     </div>
     
+    <!-- 📱 DEBUG: Indicador visual del estado del panel -->
+    <div style="background: yellow; padding: 10px; text-align: center; font-weight: bold; border: 2px solid red;">
+      🔍 DEBUG: mostrarFlutterPanel = {{ mostrarFlutterPanel ? 'TRUE ✅' : 'FALSE ❌' }} | 
+      Screen = {{ flutterScreenActual ? flutterScreenActual.className : 'NULL' }}
+    </div>
+    
     <!-- 📱 Pizarra Flutter abajo (colapsable) -->
     <div 
       id="flutter-panel"
       class="flutter-preview-container-wrapper" 
-      [class.visible]="mostrarFlutterPanel">
+      [class.visible]="mostrarFlutterPanel"
+      [style.border]="'5px solid ' + (mostrarFlutterPanel ? 'green' : 'red')">
       <app-flutter-preview 
         [screen]="flutterScreenActual"
         (cerrar)="cerrarFlutterPanel()">
       </app-flutter-preview>
     </div>
-  </div>
-    <div class="inspector-container-custom" [class.mostrar-editor]="claseSeleccionada">
-      @if (claseSeleccionada) {
-        <div class="uml-editor-panel">
-          <div class="uml-editor-header">
-            <h3>{{ claseSeleccionada.nombre || 'Clase' }}</h3>
-            <button class="btn-close" (click)="cerrarEditor()">✕</button>
-          </div>
-          
-          <div class="uml-editor-name">
-            <label>Nombre de la Clase:</label>
-            <input 
-              type="text" 
-              [(ngModel)]="claseSeleccionada.nombre"
-              (input)="onNombreClaseCambio()"
-              class="class-name-input" />
-          </div>
-
-          <app-uml-class-editor
-            [atributos]="claseSeleccionada.atributos"
-            [metodos]="claseSeleccionada.metodos"
-            (cambio)="onClaseEditada($event)">
-          </app-uml-class-editor>
-        </div>
-      }
-    </div>
-    
-    <!-- Inspector tradicional de JointJS (se oculta cuando hay clase seleccionada) -->
-    <div class="inspector-container" [class.ocultar-inspector]="claseSeleccionada"></div>
-    
-    <!-- READ : NAVBAR OPCIONES DEL GRAFICADOR -->
-    <div class="navigator-container"></div>
   </div>
   <!-- MENSAJE AL CLIENTE PARA QUE COMPARTA LA SALA -->
   <div

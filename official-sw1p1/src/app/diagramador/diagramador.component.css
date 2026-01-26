@@ -87,28 +87,34 @@ body {
   height: calc(100% - 60px);
   display: flex;
   flex-direction: column;
+  overflow-y: auto; /* Permitir scroll vertical */
+  overflow-x: hidden;
 }
 
 /* Contenedor del diagrama UML (arriba) */
 .uml-diagram-wrapper {
-  flex: 1;
+  flex-shrink: 0;
   position: relative;
   display: flex;
-  min-height: 400px;
+  height: calc(100vh - 60px); /* Altura fija igual al viewport menos header */
+  min-height: 600px;
 }
 
 /* 📱 Contenedor del Flutter Preview (abajo, colapsable) */
 .flutter-preview-container-wrapper {
   height: 0;
+  min-height: 0;
   overflow: hidden;
   background: #f5f5f5;
   border-top: 2px solid #e0e0e0;
-  transition: height 0.3s ease-in-out;
+  transition: all 0.3s ease-in-out;
+  flex-shrink: 0;
 }
 
 .flutter-preview-container-wrapper.visible {
-  height: 500px;
-  overflow: auto;
+  height: auto;
+  min-height: 600px;
+  overflow: visible;
 }
 
 .app-title {

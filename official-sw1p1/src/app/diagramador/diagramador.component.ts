@@ -117,14 +117,23 @@ export default class DiagramadorComponent
       
       // Detectar clases UML (standard.HeaderedRectangle)
       if (tipo === 'standard.HeaderedRectangle') {
-        console.log('✅ Es una clase UML, abriendo editor...');
+        console.log('✅ Es una clase UML, procesando...');
         this.onCellSelected(cell);
         
         // 📱 Generar Flutter screen automáticamente
         this.generarFlutterScreenDesdeClase(cell);
-        this.mostrarFlutterPanel = true; // Mostrar panel inferior
         
-        this.cdr.detectChanges(); // Forzar detección de cambios
+        // Mostrar panel y hacer scroll después de un pequeño delay
+        setTimeout(() => {
+          this.mostrarFlutterPanel = true;
+          console.log('📱 Panel Flutter activado:', this.mostrarFlutterPanel);
+          this.cdr.detectChanges();
+          
+          // Hacer scroll hacia el panel Flutter
+          setTimeout(() => {
+            this.scrollToFlutterPanel();
+          }, 350); // Esperar a que termine la animación
+        }, 100);
         
         // Prevenir que se muestre el inspector tradicional
         event?.stopPropagation();
@@ -132,6 +141,7 @@ export default class DiagramadorComponent
         console.log('❌ No es una clase, cerrando editor');
         this.claseSeleccionada = null;
         this.flutterScreenActual = null;
+        this.mostrarFlutterPanel = false;
         this.cdr.detectChanges();
         
         // Para enlaces y otros elementos, dejar que el sistema maneje el inspector tradicional
@@ -971,6 +981,29 @@ export default class DiagramadorComponent
   cerrarFlutterPanel() {
     this.mostrarFlutterPanel = false;
     this.flutterScreenActual = null;
+    
+    // Hacer scroll de vuelta arriba
+    const appBody = document.querySelector('.app-body');
+    if (appBody) {
+      appBody.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  /**
+   * Hace scroll suave hacia el panel de Flutter Preview
+   */
+  private scrollToFlutterPanel(): void {
+    const flutterPanel = document.getElementById('flutter-panel');
+    if (flutterPanel && this.mostrarFlutterPanel) {
+      console.log('📜 Haciendo scroll hacia Flutter Panel');
+      flutterPanel.scrollIntoView({ 
+        behavior: 'smooth', 
+        block: 'start',
+        inline: 'nearest'
+      });
+    } else {
+      console.warn('⚠️ Panel Flutter no encontrado o no visible');
+    }
   }
 
   // 📱 FLUTTER SCREENS GENERATOR
@@ -990,14 +1023,16 @@ export default class DiagramadorComponent
         return;
       }
 
+      console.log('📊 Datos de clase extraídos:', classData);
+
       // Generar el FlutterScreen
       const flutterScreen = this.flutterGeneratorService.generarDesdeClaseUML(classData);
       
       // Actualizar la vista
       this.flutterScreenActual = flutterScreen;
-      this.cdr.detectChanges();
       
       console.log('✅ Flutter Screen generado exitosamente:', flutterScreen);
+      console.log('🎯 Componentes generados:', flutterScreen.components.length);
     } catch (error) {
       console.error('❌ Error generando Flutter Screen:', error);
       this.flutterScreenActual = null;

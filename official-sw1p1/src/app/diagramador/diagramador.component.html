@@ -46,7 +46,10 @@
     </div>
     
     <!-- 📱 Pizarra Flutter abajo (colapsable) -->
-    <div class="flutter-preview-container-wrapper" [class.visible]="mostrarFlutterPanel">
+    <div 
+      id="flutter-panel"
+      class="flutter-preview-container-wrapper" 
+      [class.visible]="mostrarFlutterPanel">
       <app-flutter-preview 
         [screen]="flutterScreenActual"
         (cerrar)="cerrarFlutterPanel()">

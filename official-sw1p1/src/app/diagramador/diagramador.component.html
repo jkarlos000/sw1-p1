@@ -45,18 +45,11 @@
       <div class="navigator-container"></div>
     </div>
     
-    <!-- 📱 DEBUG: Indicador visual del estado del panel -->
-    <div style="background: yellow; padding: 10px; text-align: center; font-weight: bold; border: 2px solid red;">
-      🔍 DEBUG: mostrarFlutterPanel = {{ mostrarFlutterPanel ? 'TRUE ✅' : 'FALSE ❌' }} | 
-      Screen = {{ flutterScreenActual ? flutterScreenActual.className : 'NULL' }}
-    </div>
-    
-    <!-- 📱 Pizarra Flutter abajo (colapsable) -->
+    <!-- 📱 Pizarra Flutter abajo (solo aparece cuando hay screen generado) -->
     <div 
       id="flutter-panel"
       class="flutter-preview-container-wrapper" 
-      [class.visible]="mostrarFlutterPanel"
-      [style.border]="'5px solid ' + (mostrarFlutterPanel ? 'green' : 'red')">
+      [class.visible]="flutterScreenActual !== null">
       <app-flutter-preview 
         [screen]="flutterScreenActual"
         (cerrar)="cerrarFlutterPanel()">
@@ -65,7 +58,7 @@
 
     <!-- Botón flotante para volver al diagrama UML -->
     <button 
-      *ngIf="mostrarFlutterPanel" 
+      *ngIf="flutterScreenActual !== null" 
       class="btn-scroll-top"
       (click)="scrollToDiagram()"
       title="Volver al diagrama UML">

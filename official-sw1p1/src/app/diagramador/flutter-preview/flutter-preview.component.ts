@@ -19,7 +19,7 @@ export class FlutterPreviewComponent implements OnInit {
   public modoEdicion: boolean = false;
 
   // 👋 Drag & Drop
-  private draggedIndex: number | null = null;
+  public draggedIndex: number | null = null;
   public dragOverIndex: number | null = null;
 
   // Paleta de componentes disponibles

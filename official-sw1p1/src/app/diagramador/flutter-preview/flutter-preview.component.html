@@ -6,6 +6,15 @@
       <h3>Flutter Preview: {{ screen.className }}</h3>
     </div>
     <div class="header-actions">
+      <!-- Botón toggle modo edición -->
+      <button 
+        class="btn-toggle-mode" 
+        [class.active]="modoEdicion"
+        (click)="toggleModoEdicion()"
+        title="{{ modoEdicion ? 'Cambiar a modo vista' : 'Cambiar a modo edición' }}">
+        <span class="icon">{{ modoEdicion ? '👁️' : '✏️' }}</span>
+        {{ modoEdicion ? 'Vista' : 'Editar' }}
+      </button>
       <button class="btn-export" (click)="exportarDart()">
         <span class="icon">📤</span>
         Exportar .dart
@@ -51,11 +60,17 @@
       </div>
 
       <!-- Body con componentes -->
-      <div class="flutter-body">
+      <div class="flutter-body" [class.modo-edicion]="modoEdicion">
+        <!-- Indicador de modo edición -->
+        <div class="edicion-banner" *ngIf="modoEdicion">
+          ✏️ Modo Edición Activo - Click en componentes para editar
+        </div>
+        
         <div 
           *ngFor="let component of screen.components" 
           class="flutter-component"
-          [class]="getSizeClass(component)">
+          [class]="getSizeClass(component)"
+          [class.editable]="modoEdicion">
           
           <!-- TextField -->
           <div *ngIf="component.type === 'TextField'" class="flutter-textfield">

@@ -15,6 +15,9 @@ export class FlutterPreviewComponent implements OnInit {
   @Input() screen: FlutterScreen | null = null;
   @Output() cerrar = new EventEmitter<void>();
 
+  // 🎨 Modo de edición
+  public modoEdicion: boolean = false;
+
   // Paleta de componentes disponibles
   public componentesPaleta = [
     { type: 'TextField', icon: '📝', label: 'TextField' },
@@ -31,6 +34,14 @@ export class FlutterPreviewComponent implements OnInit {
 
   ngOnInit(): void {
     console.log('📱 Flutter Preview Component iniciado');
+  }
+
+  /**
+   * Cambia entre modo vista y modo edición
+   */
+  toggleModoEdicion(): void {
+    this.modoEdicion = !this.modoEdicion;
+    console.log('🎨 Modo edición:', this.modoEdicion ? 'ACTIVADO' : 'DESACTIVADO');
   }
 
   /**

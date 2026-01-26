@@ -5,6 +5,29 @@
  */
 
 /**
+ * UML Attribute for Dart code generation
+ */
+export interface Atributo {
+  titulo: string;
+  tipo?: string;                  // Data type (String, Integer, Double, etc.)
+  visibility?: 'public' | 'private' | 'protected' | 'package';
+  defaultValue?: string;
+}
+
+/**
+ * UML Method for Dart code generation
+ */
+export interface Metodo {
+  nombre: string;
+  parametros?: {
+    nombre: string;
+    tipo: string;
+  }[];
+  tipoRetorno?: string;           // Return type (void, String, Boolean, etc.)
+  visibility?: 'public' | 'private' | 'protected' | 'package';
+}
+
+/**
  * Screen definition from user design
  */
 export interface Screen {
@@ -13,6 +36,8 @@ export interface Screen {
   components: Component[];
   styling?: ScreenStyling;
   navigation?: NavigationConfig;
+  atributos?: Atributo[];        // ⭐ NEW: UML attributes
+  metodos?: Metodo[];           // ⭐ NEW: UML methods
 }
 
 /**
@@ -423,3 +448,5 @@ export interface GenerationStats {
   errors: ValidationError[];
   warnings: string[];
 }
+
+

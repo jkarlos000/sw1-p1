@@ -1966,35 +1966,108 @@ IMPORTANTE:
         
         // Convert UML classes to Flutter screens
         const screens = elementos.map((el: any, index: number) => {
-          const attrs = el.attributes;
+          // Get element attributes - JointJS structure
+          const attrs = el.attributes || {};
           
-          // Try to get the class name from various properties
-          let className = 
-            attrs.name || 
-            attrs.label?.text || 
-            attrs.text || 
-            (attrs.data?.name) ||
-            (attrs.title) ||
-            `Screen${index + 1}`;
+          // Extract the class name from the header/title
+          // Priority: attrs.items[0].text > attrs.label > attrs.title > fallback
+          let className = '';
           
-          // Ensure className is not empty and is unique-ish
+          // Try items array (standard.HeaderedRectangle structure)
+          if (attrs.items && Array.isArray(attrs.items) && attrs.items.length > 0) {
+            className = attrs.items[0]?.text || attrs.items[0]?.title || '';
+          }
+          
+          // Fallback to other properties
+          if (!className) {
+            className = 
+              attrs.label?.text || 
+              attrs.title ||
+              attrs.name ||
+              attrs.text ||
+              `Screen${index + 1}`;
+          }
+          
           className = className.trim() || `Screen${index + 1}`;
           
-          // Extract attributes from the class
-          const attributes = attrs.attributes || attrs.data?.attributes || [];
-          const components = attributes.map((attr: any, attrIndex: number) => ({
+          // ⭐ NEW: Extract attributes and methods from bodyText (UML format)
+          const bodyText = attrs.items?.[1]?.text || '';
+          const atributos: any[] = [];
+          const metodos: any[] = [];
+          
+          if (bodyText) {
+            const lineas = bodyText.split('\n');
+            let enSeccionMetodos = false;
+            
+            for (let i = 0; i < lineas.length; i++) {
+              const linea = lineas[i].trim();
+              
+              // Skip separator lines
+              if (linea.includes('───') || linea === '---') {
+                enSeccionMetodos = true;
+                continue;
+              }
+              
+              // Skip empty lines
+              if (!linea || linea === '') {
+                continue;
+              }
+              
+              // Check if it's a method: contains ( ) and :
+              if (linea.includes('(') && linea.includes(')')) {
+                // Es un método
+                const metodo = this.parsearMetodoUML(linea);
+                if (metodo) {
+                  metodos.push(metodo);
+                }
+              } 
+              // Check if it's an attribute: contains :
+              else if (linea.includes(':')) {
+                // Es un atributo
+                const atributo = this.parsearAtributoUML(linea);
+                if (atributo) {
+                  atributos.push(atributo);
+                }
+              }
+            }
+          }
+          
+          // Create components from attributes (TextFields)
+          const components: any[] = atributos.map((attr: any, attrIndex: number) => ({
+            id: `comp_${attrIndex}`,
             type: 'TextField',
-            label: (typeof attr === 'string' ? attr : (attr.name || `Field${attrIndex + 1}`)),
+            label: attr.titulo || `field${attrIndex + 1}`,
+            placeholder: `Ingrese ${attr.titulo || 'valor'}`,
             position: attrIndex
           }));
           
+          // Add method buttons
+          metodos.forEach((metodo: any, metodIndex: number) => {
+            components.push({
+              id: `btn_${metodIndex}`,
+              type: 'ElevatedButton',
+              label: metodo.nombre || `Acción`,
+              position: atributos.length + metodIndex,
+              placeholder: `Click para ${metodo.nombre}`
+            });
+          });
+          
+          // If no components, add a default welcome message
+          if (components.length === 0) {
+            components.push({
+              id: 'default_text',
+              type: 'Container',
+              label: `Welcome to ${className}`,
+              position: 0,
+              placeholder: ''
+            });
+          }
+          
           return {
             className: className,
-            components: components.length > 0 ? components : [{
-              type: 'Text',
-              label: `Welcome to ${className}`,
-              position: 0
-            }]
+            components: components,
+            atributos: atributos,  // Include raw attributes for code generation
+            metodos: metodos       // Include raw methods for code generation
           };
         });
         
@@ -2003,10 +2076,14 @@ IMPORTANTE:
           screens.push({
             className: 'HomeScreen',
             components: [{
-              type: 'Text',
+              id: 'default_text',
+              type: 'Container' as const,
               label: 'Welcome to Flutter',
-              position: 0
-            }]
+              position: 0,
+              placeholder: ''
+            }],
+            atributos: [],
+            metodos: []
           });
         }
         
@@ -3258,6 +3335,86 @@ public interface ${nombreClase}Repositorio extends JpaRepository<${nombreClase},
   renderPlugin(selector: string, plugin: any): void {
     this.el.querySelector(selector)!.appendChild(plugin.el);
     plugin.render();
+  }
+
+  /**
+   * 📝 Parse a UML attribute string
+   * Format: [+|-|#|~] nombre : tipo [= defaultValue]
+   */
+  private parsearAtributoUML(linea: string): any {
+    // Remove visibility symbols
+    let cleanLine = linea.replace(/^[+\-#~]\s*/, '');
+    
+    // Extract visibility symbol if present
+    const visibilityMatch = linea.match(/^([+\-#~])/);
+    const visibility = this.simboloAVisibilidad(visibilityMatch ? visibilityMatch[1] : '-');
+    
+    // Parse: nombre : tipo [= defaultValue]
+    const match = cleanLine.match(/^(\w+)\s*:\s*(\w+)(?:\s*=\s*(.+))?/);
+    
+    if (match) {
+      return {
+        titulo: match[1].trim(),
+        tipo: match[2].trim(),
+        visibility: visibility,
+        defaultValue: match[3]?.trim()
+      };
+    }
+    
+    return null;
+  }
+
+  /**
+   * 📝 Parse a UML method string
+   * Format: [+|-|#|~] nombre(params) : returnType
+   */
+  private parsearMetodoUML(linea: string): any {
+    // Remove visibility symbols
+    let cleanLine = linea.replace(/^[+\-#~]\s*/, '');
+    
+    // Extract visibility symbol if present
+    const visibilityMatch = linea.match(/^([+\-#~])/);
+    const visibility = this.simboloAVisibilidad(visibilityMatch ? visibilityMatch[1] : '+');
+    
+    // Parse: nombre(params) : returnType
+    const match = cleanLine.match(/^(\w+)\s*\(([^)]*)\)\s*:\s*(\w+)/);
+    
+    if (match) {
+      const parametros: any[] = [];
+      
+      if (match[2]) {
+        const paramsStr = match[2].split(',');
+        paramsStr.forEach((p: string) => {
+          const parts = p.trim().split(':');
+          parametros.push({
+            nombre: parts[0].trim(),
+            tipo: parts.length > 1 ? parts[1].trim() : 'Object'
+          });
+        });
+      }
+      
+      return {
+        nombre: match[1].trim(),
+        parametros: parametros,
+        tipoRetorno: match[3].trim(),
+        visibility: visibility
+      };
+    }
+    
+    return null;
+  }
+
+  /**
+   * Convert UML visibility symbol to modifier
+   */
+  private simboloAVisibilidad(simbolo: string): string {
+    switch (simbolo) {
+      case '+': return 'public';
+      case '-': return 'private';
+      case '#': return 'protected';
+      case '~': return 'package';
+      default: return 'private';
+    }
   }
 }
 

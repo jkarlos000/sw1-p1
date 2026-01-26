@@ -105,9 +105,20 @@ export class DartCodeGeneratorService {
     // Generate theme
     files.set('lib/theme/app_theme.dart', this.generateTheme());
 
-    // Generate screen files
+    // Generate screen files with duplicate name handling
+    const screenNameCount = new Map<string, number>();
     for (const screen of screens) {
-      const screenPath = `lib/screens/${this.toSnakeCase(screen.className)}.dart`;
+      let screenName = this.toSnakeCase(screen.className);
+      
+      // Handle duplicate names by appending a number
+      if (screenNameCount.has(screenName)) {
+        screenNameCount.set(screenName, (screenNameCount.get(screenName) || 0) + 1);
+        screenName = `${screenName}_${screenNameCount.get(screenName)}`;
+      } else {
+        screenNameCount.set(screenName, 1);
+      }
+      
+      const screenPath = `lib/screens/${screenName}.dart`;
       const screenCode = this.generateScreenFile(screen);
       files.set(screenPath, screenCode);
     }

@@ -1965,16 +1965,27 @@ IMPORTANTE:
         const elementos = this.graph.getElements();
         
         // Convert UML classes to Flutter screens
-        const screens = elementos.map((el: any) => {
+        const screens = elementos.map((el: any, index: number) => {
           const attrs = el.attributes;
-          const className = attrs.name || attrs.text || 'Screen';
+          
+          // Try to get the class name from various properties
+          let className = 
+            attrs.name || 
+            attrs.label?.text || 
+            attrs.text || 
+            (attrs.data?.name) ||
+            (attrs.title) ||
+            `Screen${index + 1}`;
+          
+          // Ensure className is not empty and is unique-ish
+          className = className.trim() || `Screen${index + 1}`;
           
           // Extract attributes from the class
-          const attributes = attrs.attributes || [];
-          const components = attributes.map((attr: any) => ({
+          const attributes = attrs.attributes || attrs.data?.attributes || [];
+          const components = attributes.map((attr: any, attrIndex: number) => ({
             type: 'TextField',
-            label: attr.name || 'Field',
-            position: attributes.indexOf(attr)
+            label: (typeof attr === 'string' ? attr : (attr.name || `Field${attrIndex + 1}`)),
+            position: attrIndex
           }));
           
           return {

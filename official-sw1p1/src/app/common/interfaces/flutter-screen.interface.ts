@@ -16,6 +16,7 @@ export interface FlutterComponent {
   size?: 'small' | 'medium' | 'large';
   variant?: 'elevated' | 'outlined' | 'text';
   customProperties?: Record<string, any>;
+  placeholder?: string;
 }
 
 export interface ThemeConfig {

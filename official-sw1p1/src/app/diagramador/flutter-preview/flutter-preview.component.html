@@ -13,28 +13,19 @@
         (click)="toggleModoEdicion()"
         title="{{ modoEdicion ? 'Cambiar a modo vista' : 'Cambiar a modo edición' }}">
         <span class="icon">{{ modoEdicion ? '👁️' : '✏️' }}</span>
-        {{ modoEdicion ? 'Vista' : 'Editar' }}
-      </button>
-      <button class="btn-export" (click)="exportarDart()">
-        <span class="icon">📤</span>
-        Exportar .dart
-      </button>
-      <button class="btn-close" (click)="cerrarPanel()">
-        <span class="icon">✕</span>
       </button>
     </div>
   </div>
-
   <div class="flutter-content-wrapper">
-    <!-- Paleta de componentes lateral -->
     <div class="componentes-paleta">
       <h4>Componentes</h4>
       <div class="paleta-items">
         <div 
           *ngFor="let comp of componentesPaleta" 
           class="paleta-item"
-          (click)="agregarComponente(comp.type)"
-          title="Click para agregar {{ comp.label }}">
+          draggable="true"
+          (dragstart)="onPaletaDragStart($event, comp.type)"
+          title="Arrastra para agregar {{ comp.label }}">
           <span class="paleta-icon">{{ comp.icon }}</span>
           <span class="paleta-label">{{ comp.label }}</span>
         </div>
@@ -43,76 +34,96 @@
         <small>💡 Sprint 3: Arrastra componentes al preview</small>
       </div>
     </div>
-
-    <!-- Simulación de dispositivo móvil -->
-    <div class="flutter-device">
-    <!-- Barra superior del dispositivo -->
-    <div class="device-status-bar">
-      <span class="time">9:41</span>
-      <span class="icons">📶 📡 🔋</span>
-    </div>
-
-    <!-- Contenido de la app Flutter -->
-    <div class="flutter-screen">
-      <!-- AppBar -->
-      <div class="flutter-appbar">
-        <span class="appbar-title">{{ screen.className }}</span>
-      </div>
-
-      <!-- Body con componentes -->
-      <div class="flutter-body" [class.modo-edicion]="modoEdicion">
-        <!-- Indicador de modo edición -->
-        <div class="edicion-banner" *ngIf="modoEdicion">
-          ✏️ Modo Edición Activo - Click en componentes para editar
+    <div class="flutter-body-layout">
+      <!-- Dispositivo móvil -->
+      <div class="flutter-device">
+        <div class="device-status-bar">
+          <span class="time">9:41</span>
+          <span class="icons">📶 📡 🔋</span>
         </div>
-        
-        <div 
-          *ngFor="let component of screen.components; let i = index" 
-          class="flutter-component"
-          [class]="getSizeClass(component)"
-          [class.editable]="modoEdicion"
-          [class.dragging]="draggedIndex === i"
-          [class.drag-over]="dragOverIndex === i"
-          [draggable]="modoEdicion"
-          (dragstart)="onDragStart($event, i)"
-          (dragover)="onDragOver($event, i)"
-          (drop)="onDrop($event, i)"
-          (dragleave)="onDragLeave($event)"
-          (dragend)="onDragEnd($event)">
-          
-          <!-- TextField -->
-          <div *ngIf="component.type === 'TextField'" class="flutter-textfield">
-            <label class="textfield-label">{{ formatLabel(component.label) }}</label>
-            <div class="textfield-input">
-              <input type="text" [placeholder]="'Ingrese ' + component.label" readonly>
+        <div class="flutter-screen">
+          <div class="flutter-appbar">
+            <span class="appbar-title">{{ screen.className }}</span>
+          </div>
+          <div class="flutter-body" [class.modo-edicion]="modoEdicion"
+            (dragover)="onPreviewDragOver($event)"
+            (drop)="onPreviewDrop($event)">
+            <div class="edicion-banner" *ngIf="modoEdicion">
+              ✏️ Modo Edición Activo - Click o arrastra componentes para editar
+            </div>
+            <div 
+              *ngFor="let component of screen.components; let i = index" 
+              class="flutter-component"
+              [class]="getSizeClass(component)"
+              [class.editable]="modoEdicion"
+              [class.dragging]="draggedIndex === i"
+              [class.drag-over]="dragOverIndex === i"
+              [draggable]="modoEdicion"
+              (dragstart)="onDragStart($event, i)"
+              (dragover)="onDragOver($event, i)"
+              (drop)="onDrop($event, i)"
+              (dragleave)="onDragLeave($event)"
+              (dragend)="onDragEnd($event)"
+              (click)="onSelectComponent(i)"
+              [class.selected]="selectedComponentIndex === i">
+              <!-- TextField -->
+              <div *ngIf="component.type === 'TextField'" class="flutter-textfield">
+                <label class="textfield-label">{{ formatLabel(component.label) }}</label>
+                <div class="textfield-input">
+                  <input type="text" [placeholder]="component.placeholder || ('Ingrese ' + component.label)" readonly>
+                </div>
+              </div>
+              <!-- Button / ElevatedButton -->
+              <button 
+                *ngIf="isButton(component.type)" 
+                class="flutter-button"
+                [class]="getButtonClass(component)">
+                {{ formatLabel(component.label) }}
+              </button>
+              <!-- Icon (si se agrega en el futuro) -->
+              <div *ngIf="component.type === 'Icon'" class="flutter-icon-component">
+                <span class="material-icons">{{ component.label }}</span>
+              </div>
             </div>
           </div>
-
-          <!-- Button / ElevatedButton -->
-          <button 
-            *ngIf="isButton(component.type)" 
-            class="flutter-button"
-            [class]="getButtonClass(component)">
-            {{ formatLabel(component.label) }}
-          </button>
-
-          <!-- Icon (si se agrega en el futuro) -->
-          <div *ngIf="component.type === 'Icon'" class="flutter-icon-component">
-            <span class="material-icons">{{ component.label }}</span>
-          </div>
+        </div>
+        <div class="device-navigation-bar">
+          <span class="nav-button">◀</span>
+          <span class="nav-button">⚪</span>
+          <span class="nav-button">☰</span>
         </div>
       </div>
-    </div>
-
-    <!-- Barra inferior del dispositivo (navegación Android) -->
-    <div class="device-navigation-bar">
-      <span class="nav-button">◀</span>
-      <span class="nav-button">⚪</span>
-      <span class="nav-button">☰</span>
+      <!-- Panel lateral de propiedades SOLO FUERA del dispositivo -->
+      <ng-container *ngIf="modoEdicion && selectedComponent">
+        <div class="propiedades-panel">
+          <h4>Propiedades</h4>
+          <div class="propiedad-item">
+            <label>Nombre:</label>
+            <input type="text" [(ngModel)]="selectedComponent.label" />
+          </div>
+          <div class="propiedad-item" *ngIf="selectedComponent.type === 'TextField'">
+            <label>Placeholder:</label>
+            <input type="text" [(ngModel)]="selectedComponent.placeholder" />
+          </div>
+          <div class="propiedad-item" *ngIf="isButton(selectedComponent.type)">
+            <label>Tipo de botón:</label>
+            <select [(ngModel)]="selectedComponent.variant">
+              <option value="elevated">Elevated</option>
+              <option value="outlined">Outlined</option>
+              <option value="text">Text</option>
+            </select>
+          </div>
+          <div class="propiedad-item" *ngIf="selectedComponent.type === 'Icon'">
+            <label>Icono:</label>
+            <input type="text" [(ngModel)]="selectedComponent.label" />
+          </div>
+          <div class="propiedad-item">
+            <button class="btn-eliminar" (click)="eliminarComponente()">🗑️ Eliminar componente</button>
+          </div>
+        </div>
+      </ng-container>
     </div>
   </div>
-  </div> <!-- Cierre de flutter-content-wrapper -->
-</div>
 
 <!-- Estado vacío -->
 <div class="flutter-preview-empty" *ngIf="!screen">

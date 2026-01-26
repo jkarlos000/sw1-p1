@@ -1,5 +1,8 @@
+// ...existing code...
+// ...existing code...
 import { Component, Input, OnInit, Output, EventEmitter } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { FlutterScreen, FlutterComponent } from '../../common/interfaces/flutter-screen.interface';
 import { ConfigService } from '../../common/services/config.service';
@@ -7,22 +10,19 @@ import { ConfigService } from '../../common/services/config.service';
 @Component({
   selector: 'app-flutter-preview',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule],
   templateUrl: './flutter-preview.component.html',
   styleUrls: ['./flutter-preview.component.css']
 })
 export class FlutterPreviewComponent implements OnInit {
+  public paletaDraggedType: FlutterComponent['type'] | null = null;
+  public selectedComponentIndex: number | null = null;
+  public selectedComponent: FlutterComponent | null = null;
   @Input() screen: FlutterScreen | null = null;
   @Output() cerrar = new EventEmitter<void>();
-
-  // 🎨 Modo de edición
   public modoEdicion: boolean = false;
-
-  // 👋 Drag & Drop
   public draggedIndex: number | null = null;
   public dragOverIndex: number | null = null;
-
-  // Paleta de componentes disponibles
   public componentesPaleta = [
     { type: 'TextField', icon: '📝', label: 'TextField' },
     { type: 'ElevatedButton', icon: '🔘', label: 'Button' },
@@ -54,7 +54,6 @@ export class FlutterPreviewComponent implements OnInit {
   onDragStart(event: DragEvent, index: number): void {
     this.draggedIndex = index;
     console.log('👋 Arrastrando componente:', index);
-    
     if (event.dataTransfer) {
       event.dataTransfer.effectAllowed = 'move';
       event.dataTransfer.setData('text/html', index.toString());
@@ -66,11 +65,9 @@ export class FlutterPreviewComponent implements OnInit {
    */
   onDragOver(event: DragEvent, index: number): void {
     event.preventDefault();
-    
     if (event.dataTransfer) {
       event.dataTransfer.dropEffect = 'move';
     }
-    
     this.dragOverIndex = index;
   }
 
@@ -79,31 +76,40 @@ export class FlutterPreviewComponent implements OnInit {
    */
   onDrop(event: DragEvent, dropIndex: number): void {
     event.preventDefault();
-    
     if (this.draggedIndex === null || !this.screen) {
       return;
     }
-
     // Reordenar componentes
     const components = [...this.screen.components];
     const draggedComponent = components[this.draggedIndex];
-    
     // Eliminar del índice original
     components.splice(this.draggedIndex, 1);
-    
     // Insertar en el nuevo índice
     components.splice(dropIndex, 0, draggedComponent);
-    
     // Actualizar posiciones
     components.forEach((comp, idx) => {
       comp.position = idx + 1;
     });
-    
     // Actualizar el screen
     this.screen.components = components;
-    
+    // Si el componente seleccionado se movió, actualizar el índice
+    if (this.selectedComponentIndex !== null) {
+      if (this.selectedComponentIndex === this.draggedIndex) {
+        this.selectedComponentIndex = dropIndex;
+      } else if (
+        this.selectedComponentIndex > this.draggedIndex &&
+        this.selectedComponentIndex <= dropIndex
+      ) {
+        this.selectedComponentIndex--;
+      } else if (
+        this.selectedComponentIndex < this.draggedIndex &&
+        this.selectedComponentIndex >= dropIndex
+      ) {
+        this.selectedComponentIndex++;
+      }
+      this.selectedComponent = this.screen.components[this.selectedComponentIndex];
+    }
     console.log('✅ Componente reordenado de', this.draggedIndex, 'a', dropIndex);
-    
     // Limpiar estado
     this.draggedIndex = null;
     this.dragOverIndex = null;
@@ -163,11 +169,8 @@ export class FlutterPreviewComponent implements OnInit {
       console.warn('⚠️ No hay screen para exportar');
       return;
     }
-
     console.log('📤 Exportando código Dart para:', this.screen.className);
-    
     const apiUrl = this.configService.getConfig().apiUrl;
-    
     this.http.post<any>(`${apiUrl}/flutter/generar-codigo`, { screen: this.screen })
       .subscribe({
         next: (response) => {
@@ -198,7 +201,6 @@ export class FlutterPreviewComponent implements OnInit {
     link.click();
     document.body.removeChild(link);
     window.URL.revokeObjectURL(url);
-    
     console.log(`✅ Archivo ${className}_screen.dart descargado`);
   }
 
@@ -217,11 +219,76 @@ export class FlutterPreviewComponent implements OnInit {
   }
 
   /**
-   * Agregar componente desde la paleta (placeholder para futura implementación)
+   * Agregar componente desde la paleta
    */
-  agregarComponente(tipo: string): void {
-    console.log('➕ Agregar componente:', tipo);
-    // TODO: Implementar drag & drop o click para agregar
-    alert(`Funcionalidad de agregar ${tipo} en desarrollo (Sprint 3)`);
+  public agregarComponente(tipo: string): void {
+    if (!this.screen) return;
+    // Crear un nuevo componente básico según el tipo
+    const allowedTypes = [
+      'TextField', 'Button', 'ElevatedButton', 'TextButton', 'Icon', 'Container', 'AppBar', 'ListView'
+    ] as const;
+    const safeType = allowedTypes.includes(tipo as any) ? tipo as FlutterComponent['type'] : 'Container';
+    const nuevo: FlutterComponent = {
+      id: Date.now().toString(),
+      type: safeType,
+      label: safeType.toLowerCase(),
+      position: this.screen.components.length + 1,
+      size: 'medium',
+      variant: safeType === 'ElevatedButton' ? 'elevated' : safeType === 'TextButton' ? 'text' : undefined,
+      placeholder: safeType === 'TextField' ? `Ingrese ${safeType.toLowerCase()}` : undefined
+    };
+    this.screen.components.push(nuevo);
+    this.selectedComponentIndex = this.screen.components.length - 1;
+    this.selectedComponent = nuevo;
+  }
+
+  /**
+   * Selecciona un componente para editarlo
+   */
+  onSelectComponent(index: number): void {
+    if (!this.screen) return;
+    this.selectedComponentIndex = index;
+    this.selectedComponent = this.screen.components[index];
+  }
+
+  /**
+   * Inicia el arrastre desde la paleta de componentes
+   */
+  onPaletaDragStart(event: DragEvent, type: string): void {
+    this.paletaDraggedType = type as FlutterComponent['type'];
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'copy';
+      event.dataTransfer.setData('text/plain', type);
+    }
+  }
+
+  /**
+   * Permite soltar componentes en el área de preview
+   */
+  onPreviewDragOver(event: DragEvent): void {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'copy';
+    }
+  }
+
+  /**
+   * Maneja el drop de un componente desde la paleta
+   */
+  onPreviewDrop(event: DragEvent): void {
+    event.preventDefault();
+    if (!this.paletaDraggedType || !this.screen) return;
+    this.agregarComponente(this.paletaDraggedType);
+    this.paletaDraggedType = null;
+  }
+
+  /**
+   * Elimina el componente seleccionado
+   */
+  eliminarComponente(): void {
+    if (!this.screen || this.selectedComponentIndex === null) return;
+    this.screen.components.splice(this.selectedComponentIndex, 1);
+    this.selectedComponent = null;
+    this.selectedComponentIndex = null;
   }
 }

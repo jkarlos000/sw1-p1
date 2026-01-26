@@ -96,8 +96,8 @@ body {
   flex-shrink: 0;
   position: relative;
   display: flex;
-  height: calc(100vh - 60px); /* Altura fija igual al viewport menos header */
-  min-height: 600px;
+  height: 70vh; /* 70% del viewport - más compacto */
+  min-height: 500px;
 }
 
 /* 📱 Contenedor del Flutter Preview (abajo, colapsable) */
@@ -115,6 +115,32 @@ body {
   height: auto;
   min-height: 600px;
   overflow: visible;
+}
+
+/* Botón flotante para volver arriba */
+.btn-scroll-top {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  width: 60px;
+  height: 60px;
+  background: #2196F3;
+  color: white;
+  border: none;
+  border-radius: 50%;
+  font-size: 24px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  z-index: 1000;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-scroll-top:hover {
+  background: #1976D2;
+  transform: scale(1.1);
 }
 
 .app-title {

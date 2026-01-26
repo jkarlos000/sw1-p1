@@ -62,6 +62,15 @@
         (cerrar)="cerrarFlutterPanel()">
       </app-flutter-preview>
     </div>
+
+    <!-- Botón flotante para volver al diagrama UML -->
+    <button 
+      *ngIf="mostrarFlutterPanel" 
+      class="btn-scroll-top"
+      (click)="scrollToDiagram()"
+      title="Volver al diagrama UML">
+      ⬆️
+    </button>
   </div>
   <!-- MENSAJE AL CLIENTE PARA QUE COMPARTA LA SALA -->
   <div

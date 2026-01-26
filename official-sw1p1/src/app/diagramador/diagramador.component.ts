@@ -1012,6 +1012,19 @@ export default class DiagramadorComponent
     }
   }
 
+  /**
+   * Scroll hacia arriba para ver el diagrama UML
+   */
+  scrollToDiagram(): void {
+    const wrapper = document.querySelector('.uml-diagram-wrapper');
+    if (wrapper) {
+      wrapper.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      // Si no encuentra el wrapper, scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
   // 📱 FLUTTER SCREENS GENERATOR
 
   /**

@@ -1,6 +1,6 @@
 // ...existing code...
 // ...existing code...
-import { Component, Input, OnInit, Output, EventEmitter } from '@angular/core';
+import { Component, Input, OnInit, Output, EventEmitter, ViewChild, ElementRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -22,11 +22,14 @@ export class FlutterPreviewComponent implements OnInit {
   public selectedComponent: FlutterComponent | null = null;
   @Input() screen: FlutterScreen | null = null;
   @Output() cerrar = new EventEmitter<void>();
+  @ViewChild('inputFile') inputFile!: ElementRef<HTMLInputElement>;
   public modoEdicion: boolean = false;
   public draggedIndex: number | null = null;
   public dragOverIndex: number | null = null;
   public mostrarCodigoDart: boolean = false;
   public codigoDartGenerado: string = '';
+  public cargandoMockup: boolean = false;
+  public imagenPreview: string | null = null;
   public componentesPaleta = [
     { type: 'TextField', icon: '📝', label: 'TextField' },
     { type: 'ElevatedButton', icon: '🔘', label: 'Button' },
@@ -289,6 +292,113 @@ export class FlutterPreviewComponent implements OnInit {
       console.error('❌ Error al copiar:', err);
       alert('Error al copiar el código');
     });
+  }
+
+  /**
+   * Abre el selector de archivos para subir una imagen de mockup
+   */
+  abrirSelectorImagen(): void {
+    this.inputFile.nativeElement.click();
+  }
+
+  /**
+   * Maneja cuando el usuario selecciona una imagen
+   */
+  onImagenSeleccionada(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const files = input.files;
+
+    if (!files || files.length === 0) {
+      return;
+    }
+
+    const archivo = files[0];
+
+    // Validar tamaño (máximo 5MB)
+    if (archivo.size > 5 * 1024 * 1024) {
+      alert('La imagen es demasiado grande (máximo 5MB)');
+      return;
+    }
+
+    // Validar tipo
+    if (!archivo.type.startsWith('image/')) {
+      alert('Por favor selecciona un archivo de imagen válido');
+      return;
+    }
+
+    // Mostrar preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      this.imagenPreview = e.target?.result as string;
+      console.log('📸 Imagen cargada, preview mostrado');
+      // Automáticamente procesar la imagen
+      this.interpretarMockup(archivo);
+    };
+    reader.readAsDataURL(archivo);
+  }
+
+  /**
+   * Envía la imagen al backend para que IA la interprete
+   */
+  private interpretarMockup(archivo: File): void {
+    this.cargandoMockup = true;
+    console.log('🤖 Iniciando interpretación de mockup con IA...');
+
+    const formData = new FormData();
+    formData.append('imagen', archivo);
+    if (this.screen?.className) {
+      formData.append('className', this.screen.className);
+    }
+
+    const apiUrl = this.configService.getConfig().apiUrl;
+    this.http.post<any>(`${apiUrl}/flutter/interpretar-mockup`, formData)
+      .subscribe({
+        next: (response) => {
+          if (response.ok && response.screens && response.screens.length > 0) {
+            console.log('✅ Mockup interpretado exitosamente:', response.screens);
+            // Actualizar el screen con los componentes interpretados
+            this.actualizarScreenDesdeIA(response.screens[0]);
+            alert('✅ Mockup interpretado correctamente!');
+          } else {
+            console.warn('⚠️ Respuesta inesperada:', response);
+            alert('No se pudo interpretar el mockup. Intenta con un dibujo más claro.');
+          }
+          this.cargandoMockup = false;
+          this.imagenPreview = null;
+        },
+        error: (error) => {
+          console.error('❌ Error al interpretar mockup:', error);
+          this.cargandoMockup = false;
+          alert('Error al procesar la imagen. Verifica tu conexión e intenta nuevamente.');
+        }
+      });
+  }
+
+  /**
+   * Actualiza el screen actual con los componentes interpretados de la IA
+   */
+  private actualizarScreenDesdeIA(screenInterpretado: FlutterScreen): void {
+    if (!this.screen) return;
+
+    // Si el screen interpretado tiene un className diferente, actualizar el actual
+    if (screenInterpretado.className && screenInterpretado.className !== this.screen.className) {
+      console.log('📝 Actualizando className:', screenInterpretado.className);
+      this.screen.className = screenInterpretado.className;
+    }
+
+    // Reemplazar componentes con los interpretados
+    if (screenInterpretado.components && screenInterpretado.components.length > 0) {
+      console.log('🔄 Reemplazando componentes:', screenInterpretado.components.length);
+      this.screen.components = screenInterpretado.components;
+      
+      // Regenerar código Dart si está visible
+      if (this.mostrarCodigoDart) {
+        this.generarCodigoDart();
+      }
+
+      // Guardar estado en historial
+      this.guardarEstado();
+    }
   }
 
   /**

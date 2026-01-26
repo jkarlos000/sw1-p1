@@ -42,6 +42,20 @@
         title="Ver vista previa de código Dart">
         &lt;&gt; Dart
       </button>
+      <!-- Botón para actualizar desde dibujo (mockup) -->
+      <button 
+        class="btn-mockup-upload"
+        (click)="abrirSelectorImagen()"
+        [disabled]="cargandoMockup"
+        title="Subir foto de mockup para interpretar con IA">
+        {{ cargandoMockup ? '⏳ Procesando...' : '📸 Mockup' }}
+      </button>
+      <input 
+        #inputFile
+        type="file" 
+        accept="image/*"
+        style="display: none"
+        (change)="onImagenSeleccionada($event)">
     </div>
   </div>
   <div class="flutter-content-wrapper">

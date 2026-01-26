@@ -701,6 +701,27 @@
   box-shadow: 0 0 12px rgba(0, 255, 0, 0.5);
 }
 
+/* Botón para subir mockup */
+.btn-mockup-upload {
+  background: #ff6b6b;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-mockup-upload:hover:not(:disabled) {
+  background: #ff5252;
+  box-shadow: 0 0 12px rgba(255, 107, 107, 0.3);
+}
+.btn-mockup-upload:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 /* Panel de código Dart */
 .codigo-dart-panel {
   width: 100%;

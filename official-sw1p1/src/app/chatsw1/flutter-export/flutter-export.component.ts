@@ -7,6 +7,7 @@
 import { Component, OnInit, ViewChild, TemplateRef, Optional } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router } from '@angular/router';
 
 // Local interfaces for Flutter export
 interface ComponentItem {
@@ -87,9 +88,36 @@ export class FlutterExportComponent implements OnInit {
   readonly FILE_SIZE_LIMIT = 50; // MB
 
   // Inject token for optional service
-  constructor() {}
+  constructor(private router: Router) {
+    // Get data from router state if coming from diagram export
+    const navigation = this.router.getCurrentNavigation();
+    if (navigation?.extras?.state) {
+      const state = navigation.extras.state;
+      if (state.screens && Array.isArray(state.screens)) {
+        this.screens = state.screens;
+      }
+      if (state.projectName) {
+        this.projectName = state.projectName;
+      }
+    }
+  }
 
   ngOnInit(): void {
+    // If no screens were loaded from router state, use defaults
+    if (this.screens.length === 0) {
+      this.screens = [
+        {
+          className: 'HomeScreen',
+          components: [
+            {
+              type: 'Text',
+              label: 'Welcome to Flutter',
+              position: 0
+            }
+          ]
+        }
+      ];
+    }
     this.loadExportHistory();
   }
 

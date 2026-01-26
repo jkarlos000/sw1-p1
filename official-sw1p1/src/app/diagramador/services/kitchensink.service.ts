@@ -1961,8 +1961,51 @@ IMPORTANTE:
         window.URL.revokeObjectURL(url);
       },
       'flutterExportar:pointerclick': () => {
-        // Navigate to Flutter Export component
-        this.router.navigate(['/flutter-export']);
+        // Get diagram elements (UML classes)
+        const elementos = this.graph.getElements();
+        
+        // Convert UML classes to Flutter screens
+        const screens = elementos.map((el: any) => {
+          const attrs = el.attributes;
+          const className = attrs.name || attrs.text || 'Screen';
+          
+          // Extract attributes from the class
+          const attributes = attrs.attributes || [];
+          const components = attributes.map((attr: any) => ({
+            type: 'TextField',
+            label: attr.name || 'Field',
+            position: attributes.indexOf(attr)
+          }));
+          
+          return {
+            className: className,
+            components: components.length > 0 ? components : [{
+              type: 'Text',
+              label: `Welcome to ${className}`,
+              position: 0
+            }]
+          };
+        });
+        
+        // If no elements, create a default screen
+        if (screens.length === 0) {
+          screens.push({
+            className: 'HomeScreen',
+            components: [{
+              type: 'Text',
+              label: 'Welcome to Flutter',
+              position: 0
+            }]
+          });
+        }
+        
+        // Navigate with state containing the screens
+        this.router.navigate(['/flutter-export'], {
+          state: {
+            screens: screens,
+            projectName: 'flutter_project_from_diagram'
+          }
+        });
       },
       'jsonImportar:pointerclick': () => {
         const entrada = document.createElement('input');

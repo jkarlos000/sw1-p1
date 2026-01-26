@@ -72,53 +72,63 @@ export class FlutterGeneratorService {
     try {
       const tipo = cell.get('type');
       
-      // Verificar que sea una clase UML
-      if (tipo !== 'uml.Class') {
-        console.warn('⚠️ El elemento no es una clase UML:', tipo);
+      // Verificar que sea una clase UML (HeaderedRectangle es el tipo usado en este proyecto)
+      if (tipo !== 'standard.HeaderedRectangle') {
+        console.warn('⚠️ El elemento no es una clase UML HeaderedRectangle:', tipo);
         return null;
       }
 
-      const nombre = cell.get('name') || 'Clase';
-      const atributosRaw = cell.get('attributes') || [];
-      const metodosRaw = cell.get('methods') || [];
+      // Extraer nombre del header
+      const nombre = cell.attr('headerText/text') || cell.attr('header/text') || 'Clase';
+      
+      // Extraer body text (contiene atributos y métodos)
+      const bodyText = cell.attr('bodyText/textWrap/text') || cell.attr('bodyText/text') || cell.attr('body/text') || '';
+      
+      console.log('📄 Extrayendo de clase:', nombre);
+      console.log('📄 Body text:', bodyText);
 
-      // Parsear atributos
-      const attributes = atributosRaw.map((attr: string, index: number) => {
-        const match = attr.match(/([+\-#~]?)(\w+)\s*:\s*(\w+)/);
-        if (match) {
-          return {
-            name: match[2],
-            type: match[3],
-            visibility: this.mapVisibility(match[1])
-          };
-        }
-        // Formato simple: solo nombre
-        return {
-          name: attr.replace(/[+\-#~]/, '').trim(),
-          type: 'String',
-          visibility: 'public'
-        };
-      });
+      const attributes: any[] = [];
+      const methods: any[] = [];
 
-      // Parsear métodos
-      const methods = metodosRaw.map((method: string, index: number) => {
-        const match = method.match(/([+\-#~]?)(\w+)\s*\((.*?)\)\s*(?::\s*(\w+))?/);
-        if (match) {
-          return {
-            name: match[2],
-            returnType: match[4] || 'void',
-            visibility: this.mapVisibility(match[1]),
-            parameters: match[3] ? match[3].split(',').map(p => p.trim()) : []
-          };
+      if (bodyText) {
+        const lineas = bodyText.split('\n');
+        
+        // Parsear cada línea del body
+        for (const linea of lineas) {
+          const lineaTrim = linea.trim();
+          
+          // Ignorar separadores y líneas vacías
+          if (!lineaTrim || lineaTrim.includes('───') || lineaTrim === '---') {
+            continue;
+          }
+          
+          // Detectar métodos (tienen paréntesis)
+          if (lineaTrim.includes('(') && lineaTrim.includes(')')) {
+            const match = lineaTrim.match(/([+\-#~])?\s*(\w+)\s*\((.*?)\)\s*(?::\s*(\w+))?/);
+            if (match) {
+              methods.push({
+                name: match[2],
+                returnType: match[4] || 'void',
+                visibility: this.mapVisibility(match[1]),
+                parameters: match[3] ? match[3].split(',').map(p => p.trim()) : []
+              });
+            }
+          }
+          // Detectar atributos (tienen : pero no paréntesis)
+          else if (lineaTrim.includes(':')) {
+            const match = lineaTrim.match(/([+\-#~])?\s*(\w+)\s*:\s*(\w+)/);
+            if (match) {
+              attributes.push({
+                name: match[2],
+                type: match[3],
+                visibility: this.mapVisibility(match[1])
+              });
+            }
+          }
         }
-        // Formato simple: solo nombre
-        return {
-          name: method.replace(/[+\-#~()]/, '').trim(),
-          returnType: 'void',
-            visibility: 'public',
-          parameters: []
-        };
-      });
+      }
+
+      console.log(`✅ Clase extraída: ${nombre} | Atributos: ${attributes.length} | Métodos: ${methods.length}`);
 
       return {
         className: nombre,

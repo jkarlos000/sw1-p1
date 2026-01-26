@@ -1,48 +1,30 @@
 # 📁 Configuración del Frontend
 
-## Archivos de Configuración
+## ⚙️ Sistema de Configuración
 
-Este directorio contiene **3 archivos de configuración**:
+El frontend usa **`environment.ts`** para configurar URLs automáticamente según el entorno:
 
-### 1. `config.json` ⭐ (PRODUCCIÓN)
-```json
-{
-  "apiUrl": "https://uml.jkhoster.com/api",
-  "wsUrl": "https://uml.jkhoster.com"
-}
+### DESARROLLO (`ng serve`)
+```typescript
+// src/environments/environment.ts
+export const environment = {
+  production: false,
+  apiUrl: 'http://localhost:3000',
+  wsUrl: 'http://localhost:3000'
+};
 ```
-- **Propósito:** Configuración de PRODUCCIÓN
-- **Cuándo se usa:** Build de producción (`npm run build`)
-- **Deploy:** Este archivo se copia al `dist/` y se usa en Docker/VPS
-- **Git:** ✅ Commiteado al repositorio
+✅ **Backend debe correr en localhost:3000**
 
----
-
-### 2. `config.local.json` 🏠 (DESARROLLO LOCAL)
-```json
-{
-  "apiUrl": "http://localhost:3000",
-  "wsUrl": "http://localhost:3000"
-}
+### PRODUCCIÓN (`npm run build`)
+```typescript
+// src/environments/environment.prod.ts
+export const environment = {
+  production: true,
+  apiUrl: 'https://uml.jkhoster.com/api',
+  wsUrl: 'https://uml.jkhoster.com'
+};
 ```
-- **Propósito:** Desarrollo local en tu máquina
-- **Cuándo se usa:** `ng serve` (desarrollo)
-- **Deploy:** ❌ **NO se copia al dist/** (excluido en `angular.json`)
-- **Git:** ✅ Commiteado (para que otros devs lo tengan)
-
----
-
-### 3. `config.example.json` 📋 (PLANTILLA)
-```json
-{
-  "apiUrl": "http://localhost:3000",
-  "wsUrl": "http://localhost:3000"
-}
-```
-- **Propósito:** Plantilla para nuevos desarrolladores
-- **Cuándo se usa:** Copiar y renombrar a `config.json` si es necesario
-- **Deploy:** ❌ **NO se copia al dist/** (excluido en `angular.json`)
-- **Git:** ✅ Commiteado
+✅ **Usa URLs de producción automáticamente**
 
 ---
 
@@ -50,98 +32,99 @@ Este directorio contiene **3 archivos de configuración**:
 
 ### Desarrollo Local
 ```bash
-# ConfigService carga /assets/config.json
-# Debe apuntar a localhost:3000
+# 1. Iniciar backend (debe estar en puerto 3000)
+cd backend-p1sw1
+npm run dev
+
+# 2. Iniciar frontend (usa environment.ts → localhost:3000)
+cd official-sw1p1
 ng serve
+
+# ✅ Frontend apunta automáticamente a http://localhost:3000
 ```
 
 ### Build de Producción
 ```bash
-# Solo config.json se copia al dist/
-# config.local.json y config.example.json se IGNORAN
+# Compila con environment.prod.ts (uml.jkhoster.com)
 npm run build
 
-# Verificar que solo exista config.json en dist:
-ls dist/client-socket/browser/assets/config*.json
-# ✅ Debería mostrar SOLO: config.json
+# Resultado: dist/ apunta a https://uml.jkhoster.com
 ```
 
 ### Deploy con Docker
 ```bash
-# Docker copia el dist/ al contenedor
-# Solo existe config.json (producción)
+# Docker usa el build compilado (environment.prod.ts)
 docker-compose build frontend
 docker-compose up -d
+
+# ✅ Frontend apunta automáticamente a https://uml.jkhoster.com
 ```
 
 ---
 
-## ⚙️ Cómo Funciona
+## 🔧 Cambiar URLs
 
-### angular.json (configuración de build)
-```json
-"assets": [
-  "src/favicon.ico",
-  {
-    "glob": "**/*",
-    "input": "src/assets",
-    "output": "assets",
-    "ignore": ["config.local.json", "config.example.json"]
-  }
-]
-```
-
-### ConfigService (carga la configuración)
+### Para desarrollo local (apuntar a otro servidor):
+Edita `src/environments/environment.ts`:
 ```typescript
-async loadConfig(): Promise<void> {
-  // SIEMPRE carga /assets/config.json
-  this.config = await firstValueFrom(
-    this.http.get<AppConfig>('/assets/config.json')
-  );
-}
+export const environment = {
+  production: false,
+  apiUrl: 'http://192.168.1.100:3000',  // ← Cambia aquí
+  wsUrl: 'http://192.168.1.100:3000'    // ← Cambia aquí
+};
+```
+
+### Para producción (cambiar dominio):
+Edita `src/environments/environment.prod.ts`:
+```typescript
+export const environment = {
+  production: true,
+  apiUrl: 'https://nuevo-dominio.com/api',  // ← Cambia aquí
+  wsUrl: 'https://nuevo-dominio.com'        // ← Cambia aquí
+};
 ```
 
 ---
 
-## 🔧 Cambiar URLs de Desarrollo
+## 📋 Archivos config.json (DEPRECADOS)
 
-Si necesitas apuntar a otro servidor en desarrollo:
+Los siguientes archivos **YA NO SE USAN**:
+- ~~`config.json`~~ → Ahora en `environment.prod.ts`
+- ~~`config.local.json`~~ → Ahora en `environment.ts`
+- ~~`config.example.json`~~ → Ahora en `environment.ts`
 
-1. **Editar `config.json`** (NO `config.local.json`):
-   ```json
-   {
-     "apiUrl": "http://192.168.1.100:3000",
-     "wsUrl": "http://192.168.1.100:3000"
-   }
-   ```
-
-2. **Reiniciar ng serve:**
-   ```bash
-   ng serve
-   ```
+**Puedes eliminarlos** (se mantienen por compatibilidad temporal).
 
 ---
 
 ## 🐛 Troubleshooting
 
 ### Frontend apunta a localhost en producción
-**Problema:** Después de `docker-compose up`, el frontend hace peticiones a `localhost:3000`
+**NO DEBERÍA PASAR** con el nuevo sistema de environments.
 
-**Causa:** El `dist/` tiene `config.local.json` copiado
+Si pasa, verifica:
+1. ¿Usaste `npm run build`? (no `ng serve`)
+2. Revisa el build: debe usar `environment.prod.ts`
+3. Verifica console del navegador: debe mostrar "Modo: PRODUCCIÓN"
+
+### Frontend apunta a producción en desarrollo
+**Causa:** Estás usando `npm run build` en lugar de `ng serve`
 
 **Solución:**
-1. Verificar que `angular.json` tenga el `ignore` configurado
-2. Limpiar dist: `rm -rf dist/`
-3. Rebuild: `npm run build`
-4. Verificar: `cat dist/client-socket/browser/assets/config.json`
-5. Debe mostrar URLs de producción (uml.jkhoster.com)
+```bash
+# Para desarrollo usa:
+ng serve
 
-### ConfigService carga config.local.json en lugar de config.json
-**NO PUEDE PASAR:** ConfigService está hardcodeado a cargar `/assets/config.json`
+# NO uses npm run build (ese es para producción)
+```
 
-Si esto pasa, revisar `config.service.ts` línea 36:
-```typescript
-this.http.get<AppConfig>('/assets/config.json')  // ← Siempre config.json
+### ConfigService no carga las URLs
+Revisa la consola del navegador. Debe mostrar:
+```
+✅ Configuración cargada desde environment:
+   - Modo: DESARROLLO
+   - API: http://localhost:3000
+   - WebSocket: http://localhost:3000
 ```
 
 ---
@@ -150,17 +133,16 @@ this.http.get<AppConfig>('/assets/config.json')  // ← Siempre config.json
 
 Antes de hacer `docker-compose build frontend`:
 
-- [ ] `config.json` tiene URLs de producción (https://uml.jkhoster.com)
-- [ ] Ejecutar `npm run build`
-- [ ] Verificar `dist/client-socket/browser/assets/` solo tiene `config.json`
-- [ ] NO debe existir `config.local.json` en dist
+- [ ] Verificar `environment.prod.ts` tiene URLs correctas
+- [ ] Ejecutar `npm run build` (usa environment.prod.ts)
+- [ ] Verificar consola del build: debe decir "production: true"
 - [ ] Commit y push cambios
 - [ ] En servidor: `git pull`
 - [ ] En servidor: `docker-compose build frontend`
 - [ ] En servidor: `docker-compose up -d`
-- [ ] Verificar en browser que NO hay errores de `localhost:3000`
+- [ ] Verificar en browser: debe mostrar "Modo: PRODUCCIÓN"
 
 ---
 
 **Última actualización:** 25 enero 2026  
-**Responsable:** Configuración de builds
+**Sistema:** Environments de Angular (reemplaza config.json)

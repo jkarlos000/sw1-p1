@@ -1,14 +1,16 @@
 /**
- * NOTA: Las URLs ahora se cargan desde assets/config.json
- * En producción, el servidor debe crear config.json con las URLs correctas
+ * Configuración para PRODUCCIÓN (Docker/VPS)
  * 
- * Ejemplo de config.json:
- * {
- *   "apiUrl": "https://api.tudominio.com",
- *   "wsUrl": "https://api.tudominio.com"
- * }
+ * Cuando ejecutas `npm run build`, Angular usa este archivo.
+ * Se despliega en Docker con nginx + backend en uml.jkhoster.com
+ * 
+ * Comandos:
+ * - Build: npm run build
+ * - Deploy: docker-compose build frontend
  */
 
 export const environment = {
   production: true,
+  apiUrl: 'https://uml.jkhoster.com/api',
+  wsUrl: 'https://uml.jkhoster.com'
 };

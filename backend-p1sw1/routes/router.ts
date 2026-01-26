@@ -30,6 +30,7 @@ import {
 } from "../controller/flutter-mockup.controller";
 import { uploadMultipleFiles } from "../middleware/upload.middleware";
 import { uploadImagenMockup } from "../middleware/upload-imagen.middleware";
+import { registerFlutterExportRoutes } from "./flutter-export.routes";
 import { pool } from "../database/config";
 const router = Router();
 
@@ -494,5 +495,10 @@ router.post("/flutter/generar-codigo", generarCodigoDart);
 
 // Interpretar mockup desde imagen con IA
 router.post("/flutter/interpretar-mockup", uploadImagenMockup, interpretarMockup);
+
+// ========================================
+// RUTAS DE FLUTTER PROJECT EXPORT (Sprint 4)
+// ========================================
+registerFlutterExportRoutes(router);
 
 export default router;

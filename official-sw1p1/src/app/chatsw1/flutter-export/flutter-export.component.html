@@ -1,0 +1,304 @@
+<!-- Flutter Project Export Component Template -->
+
+<div class="flutter-export-container">
+  <!-- Header -->
+  <div class="export-header">
+    <h2>
+      <i class="icon-flutter"></i>
+      Flutter Project Export
+    </h2>
+    <p class="subtitle">Generate production-ready Flutter projects from your designs</p>
+  </div>
+
+  <!-- Error Messages -->
+  <div *ngIf="errorMessage" class="alert alert-danger" role="alert">
+    <i class="icon-alert-circle"></i>
+    {{ errorMessage }}
+  </div>
+
+  <!-- Success Messages -->
+  <div *ngIf="successMessage" class="alert alert-success" role="alert">
+    <i class="icon-check-circle"></i>
+    {{ successMessage }}
+  </div>
+
+  <!-- Main Content -->
+  <div class="export-content">
+    <!-- Left Panel: Configuration -->
+    <div class="config-panel">
+      <h3>Export Configuration</h3>
+
+      <!-- Project Name Input -->
+      <div class="form-group">
+        <label for="projectName">Project Name</label>
+        <input
+          id="projectName"
+          type="text"
+          class="form-control"
+          [(ngModel)]="projectName"
+          [class.is-invalid]="!isValidProjectName() && projectName.length > 0"
+          placeholder="flutter_app"
+          [disabled]="exportState.isExporting"
+        />
+        <small class="form-text text-muted">
+          Lowercase letters, numbers, and underscores only (1-50 chars)
+        </small>
+        <div class="invalid-feedback" *ngIf="!isValidProjectName() && projectName.length > 0">
+          Invalid project name format
+        </div>
+      </div>
+
+      <!-- Project Version Input -->
+      <div class="form-group">
+        <label for="projectVersion">Version</label>
+        <input
+          id="projectVersion"
+          type="text"
+          class="form-control"
+          [(ngModel)]="projectVersion"
+          placeholder="1.0.0"
+          [disabled]="exportState.isExporting"
+        />
+      </div>
+
+      <!-- Screen Summary -->
+      <div class="info-panel">
+        <h4>Project Summary</h4>
+        <div class="summary-item">
+          <span>Screens:</span>
+          <strong>{{ screens.length }}</strong>
+        </div>
+        <div class="summary-item">
+          <span>Components:</span>
+          <strong>{{ getTotalComponents() }}</strong>
+        </div>
+        <div class="summary-item">
+          <span>Project Size (est.):</span>
+          <strong>~2.5 MB</strong>
+        </div>
+      </div>
+
+      <!-- Export Buttons -->
+      <div class="button-group">
+        <button
+          class="btn btn-primary btn-lg"
+          (click)="exportProject()"
+          [disabled]="!canExport()"
+        >
+          <i class="icon-download"></i>
+          Export Project
+        </button>
+
+        <button
+          class="btn btn-outline-secondary btn-lg"
+          (click)="previewExport()"
+          [disabled]="exportState.isExporting || screens.length === 0"
+        >
+          <i class="icon-eye"></i>
+          Preview
+        </button>
+      </div>
+    </div>
+
+    <!-- Right Panel: Progress & Preview -->
+    <div class="preview-panel">
+      <!-- Export Progress -->
+      <div *ngIf="exportState.isExporting" class="progress-section">
+        <h3>Export Progress</h3>
+
+        <!-- Progress Bar -->
+        <div class="progress-bar-container">
+          <div class="progress-label">
+            <span>{{ exportState.currentPhase }}</span>
+            <span class="progress-value">{{ exportState.progress }}%</span>
+          </div>
+          <div class="progress-bar">
+            <div
+              class="progress-fill"
+              [style.width.%]="exportState.progress"
+              [ngClass]="getProgressColor()"
+            ></div>
+          </div>
+        </div>
+
+        <!-- Phase Steps -->
+        <div class="phase-steps">
+          <div class="phase-step" [class.completed]="exportState.progress >= 15">
+            <i class="icon-check"></i>
+            Structure
+          </div>
+          <div class="phase-step" [class.completed]="exportState.progress >= 30">
+            <i class="icon-check"></i>
+            Screens
+          </div>
+          <div class="phase-step" [class.completed]="exportState.progress >= 45">
+            <i class="icon-check"></i>
+            Config
+          </div>
+          <div class="phase-step" [class.completed]="exportState.progress >= 60">
+            <i class="icon-check"></i>
+            Theme
+          </div>
+          <div class="phase-step" [class.completed]="exportState.progress >= 75">
+            <i class="icon-check"></i>
+            Pubspec
+          </div>
+          <div class="phase-step" [class.completed]="exportState.progress >= 90">
+            <i class="icon-check"></i>
+            Packaging
+          </div>
+          <div class="phase-step" [class.completed]="exportState.progress >= 100">
+            <i class="icon-check"></i>
+            Complete
+          </div>
+        </div>
+      </div>
+
+      <!-- Preview Section -->
+      <div *ngIf="showPreview && previewData" class="preview-section">
+        <h3>Project Preview</h3>
+
+        <div class="preview-stats">
+          <div class="stat-item">
+            <span class="stat-label">Files</span>
+            <span class="stat-value">{{ previewData.fileCount }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Size</span>
+            <span class="stat-value">{{ previewData.totalSize | number }} KB</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Gen Time</span>
+            <span class="stat-value">{{ previewData.generationTime }}ms</span>
+          </div>
+        </div>
+
+        <div class="files-list">
+          <h4>Generated Files</h4>
+          <div class="file-item" *ngFor="let file of previewData.files">
+            <div class="file-info">
+              <span class="file-name">{{ file.path }}</span>
+              <span class="file-size">{{ file.size | number }} bytes</span>
+            </div>
+            <div class="file-preview">
+              <code>{{ file.preview }}</code>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Empty State -->
+      <div *ngIf="!exportState.isExporting && !showPreview" class="empty-state">
+        <i class="icon-package"></i>
+        <h4>Ready to Export</h4>
+        <p>Configure your project and click Export to generate a Flutter project</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export History -->
+  <div class="history-section">
+    <div class="history-header">
+      <h3>Export History</h3>
+      <button
+        class="btn btn-sm btn-outline-danger"
+        (click)="clearHistory()"
+        [disabled]="exportHistory.length === 0"
+      >
+        <i class="icon-trash"></i>
+        Clear
+      </button>
+    </div>
+
+    <div *ngIf="exportHistory.length === 0" class="empty-history">
+      <p>No exports yet. Start by creating your first Flutter project!</p>
+    </div>
+
+    <div class="history-list" *ngIf="exportHistory.length > 0">
+      <div class="history-item" *ngFor="let entry of exportHistory; let i = index">
+        <div class="history-info">
+          <div class="history-name">
+            <strong>{{ entry.projectName }}</strong>
+            <span class="history-date">{{ entry.timestamp | date: 'short' }}</span>
+          </div>
+          <div class="history-details">
+            <span>{{ entry.screenCount }} screens</span>
+            <span>{{ entry.componentCount }} components</span>
+            <span>{{ entry.fileSize | number }} bytes</span>
+          </div>
+        </div>
+
+        <div class="history-status" [ngClass]="'status-' + entry.status">
+          <span class="badge">{{ entry.status | uppercase }}</span>
+        </div>
+
+        <div class="history-actions">
+          <button
+            class="btn btn-sm btn-primary"
+            (click)="downloadProject(entry.downloadUrl)"
+            *ngIf="entry.status === 'completed'"
+          >
+            <i class="icon-download"></i>
+            Download
+          </button>
+
+          <button
+            class="btn btn-sm btn-warning"
+            (click)="retryExport(entry)"
+            *ngIf="entry.status === 'failed'"
+          >
+            <i class="icon-refresh"></i>
+            Retry
+          </button>
+
+          <button class="btn btn-sm btn-outline-danger" (click)="removeHistoryEntry(i)">
+            <i class="icon-x"></i>
+            Remove
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Info Panel -->
+  <div class="info-section">
+    <div class="info-card">
+      <h4>
+        <i class="icon-info"></i>
+        What's Included
+      </h4>
+      <ul>
+        <li>✅ Complete Flutter project structure</li>
+        <li>✅ All screens with navigation</li>
+        <li>✅ Material Design theme</li>
+        <li>✅ pubspec.yaml with dependencies</li>
+        <li>✅ Ready to run: <code>flutter run</code></li>
+      </ul>
+    </div>
+
+    <div class="info-card">
+      <h4>
+        <i class="icon-lightning"></i>
+        Quick Start
+      </h4>
+      <ol>
+        <li>Download the ZIP file</li>
+        <li>Extract to your machine</li>
+        <li>Run <code>flutter pub get</code></li>
+        <li>Run <code>flutter run</code></li>
+      </ol>
+    </div>
+
+    <div class="info-card">
+      <h4>
+        <i class="icon-help-circle"></i>
+        Requirements
+      </h4>
+      <ul>
+        <li>Flutter SDK 3.0+</li>
+        <li>Dart 3.0+</li>
+        <li>Android Studio / VS Code</li>
+      </ul>
+    </div>
+  </div>
+</div>

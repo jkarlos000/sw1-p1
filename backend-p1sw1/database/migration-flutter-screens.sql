@@ -88,8 +88,8 @@ GROUP BY fs.id_screen, cu.id_clase, cu.nombre_clase, cu.id_sala;
 -- PASO 5: CREAR TRIGGERS AUTOMÁTICOS
 -- ============================================
 
--- Trigger: Actualizar fecha_actualizacion en flutter_screen
-CREATE OR REPLACE FUNCTION update_flutter_screen_timestamp()
+-- Función para actualizar fecha_actualizacion en flutter_screen
+CREATE OR REPLACE FUNCTION actualizar_fecha_flutter_screen()
 RETURNS TRIGGER AS $$
 BEGIN
     NEW.fecha_actualizacion = CURRENT_TIMESTAMP;
@@ -97,11 +97,11 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP TRIGGER IF EXISTS trigger_update_flutter_screen_timestamp ON flutter_screen;
-CREATE TRIGGER trigger_update_flutter_screen_timestamp
+DROP TRIGGER IF EXISTS trigger_actualizar_fecha_flutter_screen ON flutter_screen;
+CREATE TRIGGER trigger_actualizar_fecha_flutter_screen
 BEFORE UPDATE ON flutter_screen
 FOR EACH ROW
-EXECUTE FUNCTION update_flutter_screen_timestamp();
+EXECUTE FUNCTION actualizar_fecha_flutter_screen();
 
 -- ============================================
 -- PASO 6: DOCUMENTACIÓN DE COLUMNAS

@@ -142,17 +142,17 @@
           <h4>Propiedades</h4>
           <div class="propiedad-item">
             <label>Tipo de componente:</label>
-            <select [(ngModel)]="selectedComponent.type">
+            <select [(ngModel)]="selectedComponent.type" (change)="guardarEstadoEdicion()">
               <option *ngFor="let comp of componentesPaleta" [value]="comp.type">{{ comp.label }}</option>
             </select>
           </div>
           <div class="propiedad-item">
             <label>Nombre:</label>
-            <input type="text" [(ngModel)]="selectedComponent.label" />
+            <input type="text" [(ngModel)]="selectedComponent.label" (change)="guardarEstadoEdicion()" />
           </div>
           <div class="propiedad-item">
             <label>Tamaño:</label>
-            <select [(ngModel)]="selectedComponent.size">
+            <select [(ngModel)]="selectedComponent.size" (change)="guardarEstadoEdicion()">
               <option value="small">Pequeño</option>
               <option value="medium">Mediano</option>
               <option value="large">Grande</option>
@@ -160,11 +160,11 @@
           </div>
           <div class="propiedad-item" *ngIf="selectedComponent.type === 'TextField'">
             <label>Placeholder:</label>
-            <input type="text" [(ngModel)]="selectedComponent.placeholder" />
+            <input type="text" [(ngModel)]="selectedComponent.placeholder" (change)="guardarEstadoEdicion()" />
           </div>
           <div class="propiedad-item" *ngIf="isButton(selectedComponent.type)">
             <label>Tipo de botón:</label>
-            <select [(ngModel)]="selectedComponent.variant">
+            <select [(ngModel)]="selectedComponent.variant" (change)="guardarEstadoEdicion()">
               <option value="elevated">Elevated</option>
               <option value="outlined">Outlined</option>
               <option value="text">Text</option>

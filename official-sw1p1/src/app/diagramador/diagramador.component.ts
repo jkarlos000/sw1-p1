@@ -28,6 +28,7 @@ import { StencilService } from './services/stencil.service';
 import { ToolbarService } from './services/toolbar.service';
 import { ConfigService } from '../common/services/config.service';
 import { ClaseUmlService } from '../common/services/clase-uml.service';
+import { ClasePersistenciaService } from './services/clase-persistencia.service';
 import { UmlClassEditorComponent } from './components/uml-class-editor.component';
 import { FlutterPreviewComponent } from './flutter-preview/flutter-preview.component';
 import { FlutterScreen } from '../common/interfaces/flutter-screen.interface';
@@ -65,6 +66,7 @@ export default class DiagramadorComponent
   private cdr = inject(ChangeDetectorRef);
   onListenRespUnirseReunion!: Subscription;
   onListenModificacionesDiagrama!: Subscription;
+  onListenFlutterScreenCambios!: Subscription;
   private rappid: RappidService;
 
   public http = inject(HttpClient);
@@ -90,7 +92,8 @@ export default class DiagramadorComponent
 
   constructor(
     private element: ElementRef,
-    private router: Router
+    private router: Router,
+    private clasePersistenciaService: ClasePersistenciaService
   ) {}
 
   ngOnInit() {
@@ -103,7 +106,8 @@ export default class DiagramadorComponent
       new KeyboardService(),
       this.http,
       this.configService,
-      this.router
+      this.router,
+      this.clasePersistenciaService
     );
     
     // Asignar callbacks para sincronización con otros usuarios
@@ -230,6 +234,40 @@ export default class DiagramadorComponent
       }
     });
 
+    // 🔄 ESCUCHAR CAMBIOS EN FLUTTER SCREEN DE OTROS USUARIOS
+    this.onListenFlutterScreenCambios = this.diagramadorService
+      .onListenFlutterScreenCambios()
+      .subscribe((data: any) => {
+        if (data && data.cellId && data.screen) {
+          console.log(`📥 Cambios Flutter Screen recibidos para clase: ${data.cellId} (usuario: ${data.usuario})`);
+          
+          // Actualizar el cache con los cambios recibidos
+          const datosEnCache = this.clasePersistenciaService.obtenerDelCache(data.cellId);
+          const datosActualizados = {
+            nombre: datosEnCache?.nombre,
+            atributos: datosEnCache?.atributos || [],
+            metodos: datosEnCache?.metodos || [],
+            flutterScreen: data.screen,
+            id_clase: datosEnCache?.id_clase
+          };
+          
+          this.clasePersistenciaService.guardarEnCache(data.cellId, datosActualizados);
+          
+          // 💾 NUEVO: Guardar cambios en BD cuando vienen de otro usuario
+          if (datosActualizados.id_clase) {
+            console.log('💾 Guardando cambios Flutter de otro usuario en BD');
+            this.guardarFlutterScreenEnBD(data.screen, datosActualizados.id_clase);
+          }
+          
+          // Si la clase está actualmente seleccionada, actualizar el preview
+          if (this.claseSeleccionada && this.claseSeleccionada.cell.id === data.cellId) {
+            console.log('🔄 Actualizando Flutter Preview con cambios de otro usuario');
+            this.flutterScreenActual = data.screen;
+            this.cdr.markForCheck();
+          }
+        }
+      });
+
     // READ : EVENTOS PARA NOTIFICAR CAMBIOS A LOS DEMAS INTERGRANTES
     // READ : INICIO
 
@@ -338,6 +376,9 @@ export default class DiagramadorComponent
     }
     if (this.onListenModificacionesDiagrama) {
       this.onListenModificacionesDiagrama.unsubscribe();
+    }
+    if (this.onListenFlutterScreenCambios) {
+      this.onListenFlutterScreenCambios.unsubscribe();
     }
   }
 
@@ -815,6 +856,22 @@ export default class DiagramadorComponent
   onCellSelected(cell: any) {
     console.log('📝 Procesando selección de clase:', cell.id);
     
+    // 🔍 PRIMERO: Intentar cargar desde cache (cambios guardados)
+    const datosEnCache = this.clasePersistenciaService.obtenerDelCache(cell.id);
+    
+    if (datosEnCache) {
+      console.log('✅ Encontrados cambios guardados en cache:', datosEnCache);
+      this.claseSeleccionada = {
+        cell: cell,
+        nombre: datosEnCache.nombre,
+        atributos: datosEnCache.atributos,
+        metodos: datosEnCache.metodos
+      };
+      console.log('📊 Cargados del cache - Atributos:', datosEnCache.atributos.length, 'Métodos:', datosEnCache.metodos.length);
+      return;
+    }
+    
+    // 🔄 SI NO: Extraer desde el diagrama (datos originales)
     // Para standard.HeaderedRectangle, el nombre está en el header y los atributos en el body
     const nombreHeader = cell.attr('headerText/text') || cell.attr('header/text') || '';
     // CRÍTICO: bodyText usa textWrap para wrapping automático
@@ -943,9 +1000,22 @@ export default class DiagramadorComponent
     // CRÍTICO: Usar textWrap para que JointJS maneje el wrapping automático
     this.claseSeleccionada.cell.attr('bodyText/textWrap/text', textoUML);
     
+    // 💾 GUARDAR CAMBIOS EN CACHE (memoria)
+    this.clasePersistenciaService.guardarEnCache(
+      this.claseSeleccionada.cell.id,
+      {
+        nombre: this.claseSeleccionada.nombre,
+        atributos: this.claseSeleccionada.atributos || [],
+        metodos: this.claseSeleccionada.metodos || []
+      }
+    );
+    
+    console.log('💾 Cambios guardados en cache para:', this.claseSeleccionada.cell.id);
+    
     // 💾 Persistir en la base de datos
     if (this.idSala) {
       const claseData = {
+        id_sala: this.idSala,
         cell_id: this.claseSeleccionada.cell.id,
         nombre: this.claseSeleccionada.nombre,
         atributos: this.claseSeleccionada.atributos || [],
@@ -958,19 +1028,28 @@ export default class DiagramadorComponent
         }
       };
       
-      this.claseUmlService.guardarClase(this.idSala, claseData).subscribe({
-        next: (resp) => console.log('✅ Clase guardada en BD:', resp),
-        error: (err) => console.error('❌ Error al guardar clase:', err)
+      // Guardar en backend
+      this.clasePersistenciaService.guardarClase(
+        this.idSala,
+        this.claseSeleccionada.cell.id,
+        this.claseSeleccionada.nombre,
+        this.claseSeleccionada.atributos || [],
+        this.claseSeleccionada.metodos || []
+      ).subscribe({
+        next: (resp) => {
+          console.log('✅ Clase guardada en base de datos:', resp);
+        },
+        error: (err) => {
+          console.error('❌ Error al guardar clase en BD:', err);
+          console.log('⚠️ Los cambios se mantienen en memoria, reintentaremos al cerrar');
+        }
       });
     }
     
-    // Emitir cambio via WebSocket
+    // Emitir cambio via WebSocket para sincronizar con otros usuarios
     if (this.rappid && this.rappid.graph) {
       const jsonDiagrama = this.rappid.graph.toJSON();
-      this.diagramadorService.wsService.emit('modificar-diagrama', {
-        sala: this.nombreSala,
-        diagrama: jsonDiagrama
-      });
+      this.diagramadorService.emitChangedDiagrama(JSON.stringify(jsonDiagrama));
     }
   }
 
@@ -1026,8 +1105,61 @@ export default class DiagramadorComponent
     console.log('📱 Iniciando generación de Flutter Screen...');
     
     try {
-      // Extraer datos de la clase UML
-      const classData = this.flutterGeneratorService.extraerDatosClase(cell);
+      // 🔍 PRIMERO: Intentar obtener el screen COMPLETO del cache (con componentes personalizados)
+      const datosEnCache = this.clasePersistenciaService.obtenerDelCache(cell.id);
+      
+      if (datosEnCache?.flutterScreen) {
+        console.log('✅ Cargando Flutter Screen completo del cache');
+        this.flutterScreenActual = datosEnCache.flutterScreen;
+        console.log('📊 Componentes cargados:', datosEnCache.flutterScreen.components.length);
+        return;
+      }
+      
+      // � NUEVO: Intentar obtener del backend (si existe)
+      if (datosEnCache?.id_clase) {
+        console.log('🔍 Buscando Flutter Screen en BD para id_clase:', datosEnCache.id_clase);
+        this.clasePersistenciaService.obtenerFlutterScreen(datosEnCache.id_clase).subscribe({
+          next: (resp: any) => {
+            if (resp.ok && resp.screen) {
+              console.log('✅ Flutter Screen cargado desde BD');
+              this.flutterScreenActual = resp.screen.componentes_json;
+              // Guardar en cache también
+              datosEnCache.flutterScreen = resp.screen.componentes_json;
+              this.clasePersistenciaService.guardarEnCache(cell.id, datosEnCache);
+              return;
+            }
+          },
+          error: (err) => {
+            console.log('ℹ️ No hay Flutter Screen en BD, sincronizando clase antigua...');
+            this.sincronizarYGenerarFlutterScreen(cell, datosEnCache);
+          }
+        });
+        return;
+      }
+      
+      // 🔄 SI NO: Generar desde datos UML
+      let classData: any = null;
+      
+      if (datosEnCache) {
+        console.log('✅ Usando datos modificados del cache para Flutter Screen');
+        classData = {
+          className: datosEnCache.nombre,
+          attributes: datosEnCache.atributos.map((attr: any) => ({
+            name: attr.titulo,
+            type: attr.tipo,
+            visibility: attr.visibility
+          })),
+          methods: datosEnCache.metodos.map((met: any) => ({
+            name: met.nombre,
+            returnType: met.tipoRetorno,
+            visibility: met.visibility,
+            parameters: met.parametros || []
+          }))
+        };
+      } else {
+        // 🔄 SI NO: Extraer desde el diagrama (datos originales)
+        classData = this.flutterGeneratorService.extraerDatosClase(cell);
+      }
       
       if (!classData) {
         console.warn('⚠️ No se pudieron extraer datos de la clase');
@@ -1042,6 +1174,21 @@ export default class DiagramadorComponent
       // Actualizar la vista
       this.flutterScreenActual = flutterScreen;
       
+      // 💾 NUEVO: Guardar el screen generado en el cache con id_clase
+      const datosActualizados = {
+        nombre: classData.className,
+        atributos: datosEnCache?.atributos || [],
+        metodos: datosEnCache?.metodos || [],
+        id_clase: datosEnCache?.id_clase,
+        flutterScreen
+      };
+      this.clasePersistenciaService.guardarEnCache(cell.id, datosActualizados);
+      
+      // 💾 NUEVO: Guardar en BD si tenemos id_clase
+      if (datosEnCache?.id_clase) {
+        this.guardarFlutterScreenEnBD(flutterScreen, datosEnCache.id_clase);
+      }
+      
       console.log('✅ Flutter Screen generado exitosamente:', flutterScreen);
       console.log('🎯 Componentes generados:', flutterScreen.components.length);
     } catch (error) {
@@ -1049,4 +1196,164 @@ export default class DiagramadorComponent
       this.flutterScreenActual = null;
     }
   }
-}
+
+  /**
+   * 🆕 Generar y guardar un nuevo Flutter Screen en BD
+   */
+  private generarYGuardarFlutterScreenNuevo(cell: any, datosEnCache: any): void {
+    try {
+      let classData: any = null;
+      
+      if (datosEnCache) {
+        classData = {
+          className: datosEnCache.nombre,
+          attributes: datosEnCache.atributos.map((attr: any) => ({
+            name: attr.titulo,
+            type: attr.tipo,
+            visibility: attr.visibility
+          })),
+          methods: datosEnCache.metodos.map((met: any) => ({
+            name: met.nombre,
+            returnType: met.tipoRetorno,
+            visibility: met.visibility,
+            parameters: met.parametros || []
+          }))
+        };
+      } else {
+        classData = this.flutterGeneratorService.extraerDatosClase(cell);
+      }
+
+      const flutterScreen = this.flutterGeneratorService.generarDesdeClaseUML(classData);
+      this.flutterScreenActual = flutterScreen;
+
+      // Guardar en cache
+      const datosActualizados = {
+        nombre: classData.className,
+        atributos: datosEnCache?.atributos || [],
+        metodos: datosEnCache?.metodos || [],
+        id_clase: datosEnCache?.id_clase,
+        flutterScreen
+      };
+      this.clasePersistenciaService.guardarEnCache(cell.id, datosActualizados);
+
+      // Guardar en BD
+      if (datosEnCache?.id_clase) {
+        this.guardarFlutterScreenEnBD(flutterScreen, datosEnCache.id_clase);
+      }
+    } catch (error) {
+      console.error('❌ Error generando y guardando Flutter Screen:', error);
+    }
+  }
+
+  /**
+   * 🔄 SINCRONIZACIÓN AUTOMÁTICA: Para diagramas antiguos
+   * Si una clase no tiene Flutter Screen en BD, lo crea y genera el screen
+   */
+  private sincronizarYGenerarFlutterScreen(cell: any, datosEnCache: any): void {
+    console.log('🔄 Iniciando sincronización para diagrama antiguo...');
+    
+    if (!datosEnCache?.id_clase || !this.idSala) {
+      console.warn('⚠️ No se puede sincronizar: faltan id_clase o id_sala');
+      return;
+    }
+
+    this.clasePersistenciaService.sincronizarClaseAntigua(this.idSala!, datosEnCache.id_clase).subscribe({
+      next: (resp: any) => {
+        if (resp.ok) {
+          console.log('✅ Clase sincronizada exitosamente');
+          console.log(`   - ID Screen: ${resp.id_screen}`);
+          console.log(`   - Listo para usar: ${resp.listo_para_usar}`);
+          
+          // Ahora generar y guardar el screen
+          this.generarYGuardarFlutterScreenNuevo(cell, datosEnCache);
+        }
+      },
+      error: (err) => {
+        console.error('❌ Error sincronizando clase antigua:', err);
+        // Continuar de todas formas generando el screen en cache
+        this.generarYGuardarFlutterScreenNuevo(cell, datosEnCache);
+      }
+    });
+  }
+
+  /**
+   * 🔄 Sincronizar cambios del Flutter Preview con el cache de clases UML y emitir a otros usuarios
+   */
+  onFlutterScreenCambios(screen: FlutterScreen): void {
+    console.log('📥 Cambios recibidos del Flutter Preview:', screen);
+    
+    if (!this.claseSeleccionada) {
+      console.warn('⚠️ No hay clase seleccionada para guardar cambios');
+      return;
+    }
+    
+    // Guardar el SCREEN COMPLETO en cache, incluyendo componentes personalizados
+    const datosEnCache = this.clasePersistenciaService.obtenerDelCache(this.claseSeleccionada.cell.id);
+    
+    // Preservar atributos/métodos UML y agregar el screen con componentes
+    const datosActualizados = {
+      nombre: datosEnCache?.nombre || this.claseSeleccionada.nombre,
+      atributos: datosEnCache?.atributos || this.claseSeleccionada.atributos || [],
+      metodos: datosEnCache?.metodos || this.claseSeleccionada.metodos || [],
+      // 🆕 GUARDAR el screen completo con componentes personalizados
+      flutterScreen: screen
+    };
+    
+    // Guardar en cache local
+    this.clasePersistenciaService.guardarEnCache(
+      this.claseSeleccionada.cell.id,
+      datosActualizados
+    );
+    
+    console.log('✅ Cambios sincronizados al cache (incluyendo componentes)');
+    console.log('📊 Componentes guardados:', screen.components.length);
+    
+    // 💾 NUEVO: Guardar en BD la pantalla Flutter
+    if (this.claseSeleccionada && this.idSala) {
+      // Obtener el id_clase del backend (si existe)
+      // Por ahora usaremos un lookup o lo extraemos del cache
+      let idClase = datosEnCache?.id_clase;
+      
+      if (!idClase) {
+        // Si no tenemos id_clase, necesitamos obtenerlo del backend
+        // Realizamos una búsqueda por cell_id
+        this.clasePersistenciaService.obtenerClase(this.claseSeleccionada.cell.id).subscribe({
+          next: (resp: any) => {
+            if (resp.ok && resp.clase) {
+              idClase = resp.clase.id_clase;
+              this.guardarFlutterScreenEnBD(screen, idClase);
+            }
+          },
+          error: (err) => {
+            console.warn('⚠️ No se pudo obtener id_clase del backend:', err);
+            // Continuamos sin guardar en BD, pero sincronizamos por WebSocket
+          }
+        });
+      } else {
+        this.guardarFlutterScreenEnBD(screen, idClase);
+      }
+    }
+    
+    // 🔄 Emitir cambios a través de WebSockets para otros usuarios
+    this.diagramadorService.emitFlutterScreenCambios(
+      this.claseSeleccionada.cell.id,
+      screen
+    );
+  }
+
+  /**
+   * 💾 Guardar Flutter Screen en la base de datos
+   */
+  private guardarFlutterScreenEnBD(screen: FlutterScreen, idClase: number): void {
+    this.clasePersistenciaService.guardarFlutterScreen(this.idSala!, idClase, screen).subscribe({
+      next: (resp: any) => {
+        console.log('✅ Flutter Screen guardado en BD:', resp);
+        console.log(`   - ID Screen: ${resp.id_screen}`);
+        console.log(`   - Componentes guardados: ${resp.componentes_guardados}`);
+      },
+      error: (err: any) => {
+        console.error('❌ Error al guardar Flutter Screen en BD:', err);
+        console.log('⚠️ Los cambios se mantienen en cache local y se sincronizarán cuando se reconecte');
+      }
+    });
+  }}

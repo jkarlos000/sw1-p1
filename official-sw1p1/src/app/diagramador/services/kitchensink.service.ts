@@ -78,7 +78,8 @@ class KitchenSinkService {
     keyboardService: KeyboardService,
     http: HttpClient,
     configService: ConfigService,
-    router: Router
+    router: Router,
+    private clasePersistenciaService?: any
   ) {
     this.http = http;
     this.configService = configService;
@@ -1964,72 +1965,85 @@ IMPORTANTE:
         // Get diagram elements (UML classes)
         const elementos = this.graph.getElements();
         
+        console.log('🔍 DEBUG: Total elementos in diagram:', elementos.length);
+        
         // Convert UML classes to Flutter screens
         const screens = elementos.map((el: any, index: number) => {
           // Get element attributes - JointJS structure
           const attrs = el.attributes || {};
+          const cellId = el.id;
           
-          // Extract the class name from the header/title
-          // Priority: attrs.items[0].text > attrs.label > attrs.title > fallback
+          console.log(`🔍 ELEMENT ${index}:`, {
+            keys: Object.keys(attrs),
+            cellId: cellId
+          });
+          
+          // 🔍 PRIMERO: Intentar obtener datos del cache (cambios modificados)
           let className = '';
+          let atributos: any[] = [];
+          let metodos: any[] = [];
           
-          // Try items array (standard.HeaderedRectangle structure)
-          if (attrs.items && Array.isArray(attrs.items) && attrs.items.length > 0) {
-            className = attrs.items[0]?.text || attrs.items[0]?.title || '';
+          if (this.clasePersistenciaService) {
+            const datosEnCache = this.clasePersistenciaService.obtenerDelCache(cellId);
+            if (datosEnCache) {
+              console.log(`✅ Usando datos del cache para ${cellId}:`, datosEnCache);
+              className = datosEnCache.nombre;
+              atributos = datosEnCache.atributos || [];
+              metodos = datosEnCache.metodos || [];
+              console.log(`  → Cache: ${atributos.length} attributes, ${metodos.length} methods`);
+            }
           }
           
-          // Fallback to other properties
+          // 🔄 SI NO HAY CACHE: Extraer desde el diagrama (datos originales)
           if (!className) {
-            className = 
-              attrs.label?.text || 
-              attrs.title ||
-              attrs.name ||
-              attrs.text ||
-              `Screen${index + 1}`;
-          }
-          
-          className = className.trim() || `Screen${index + 1}`;
-          
-          // ⭐ NEW: Extract attributes and methods from bodyText (UML format)
-          const bodyText = attrs.items?.[1]?.text || '';
-          const atributos: any[] = [];
-          const metodos: any[] = [];
-          
-          if (bodyText) {
-            const lineas = bodyText.split('\n');
-            let enSeccionMetodos = false;
+            // Extract the class name from headerText
+            // The actual JointJS structure: attrs.attrs.headerText.text
+            className = attrs.attrs?.headerText?.text || `Screen${index + 1}`;
+            className = className.trim() || `Screen${index + 1}`;
             
-            for (let i = 0; i < lineas.length; i++) {
-              const linea = lineas[i].trim();
+            // ⭐ FIXED: Extract attributes and methods from bodyText.textWrap.text (UML format)
+            // The actual structure: attrs.attrs.bodyText.textWrap.text
+            const bodyText = attrs.attrs?.bodyText?.textWrap?.text || '';
+            console.log(`  ClassName: ${className}, BodyText length: ${bodyText.length}`);
+            
+            if (bodyText) {
+              const lineas = bodyText.split('\n');
+              let enSeccionMetodos = false;
               
-              // Skip separator lines
-              if (linea.includes('───') || linea === '---') {
-                enSeccionMetodos = true;
-                continue;
-              }
-              
-              // Skip empty lines
-              if (!linea || linea === '') {
-                continue;
-              }
-              
-              // Check if it's a method: contains ( ) and :
-              if (linea.includes('(') && linea.includes(')')) {
-                // Es un método
-                const metodo = this.parsearMetodoUML(linea);
-                if (metodo) {
-                  metodos.push(metodo);
+              for (let i = 0; i < lineas.length; i++) {
+                const linea = lineas[i].trim();
+                
+                // Skip separator lines
+                if (linea.includes('───') || linea === '---') {
+                  enSeccionMetodos = true;
+                  continue;
                 }
-              } 
-              // Check if it's an attribute: contains :
-              else if (linea.includes(':')) {
-                // Es un atributo
-                const atributo = this.parsearAtributoUML(linea);
-                if (atributo) {
-                  atributos.push(atributo);
+                
+                // Skip empty lines
+                if (!linea || linea === '') {
+                  continue;
+                }
+                
+                // Check if it's a method: contains ( ) and :
+                if (linea.includes('(') && linea.includes(')')) {
+                  // Es un método
+                  const metodo = this.parsearMetodoUML(linea);
+                  if (metodo) {
+                    metodos.push(metodo);
+                  }
+                } 
+                // Check if it's an attribute: contains :
+                else if (linea.includes(':')) {
+                  // Es un atributo
+                  const atributo = this.parsearAtributoUML(linea);
+                  if (atributo) {
+                    atributos.push(atributo);
+                  }
                 }
               }
             }
+            
+            console.log(`  → Diagram: ${atributos.length} attributes, ${metodos.length} methods`);
           }
           
           // Create components from attributes (TextFields)

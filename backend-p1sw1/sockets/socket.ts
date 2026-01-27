@@ -321,6 +321,34 @@ export const changedDiagrama = (cliente: Socket, io: socketIO.Server) => {
     });
 };
 
+/**
+ * 🔄 Maneja cambios en el Flutter Screen y los sincroniza en la sala
+ */
+export const flutterScreenCambios = (cliente: Socket, io: socketIO.Server) => {
+    cliente.on('flutter-screen-cambios', async (data: any) => {
+        console.log(`📱 Cambios Flutter Screen recibidos para clase: ${data.cellId}`);
+        
+        if (data.sala) {
+            try {
+                // Emitir a todos excepto al emisor en la misma sala
+                cliente.broadcast.to(data.sala).emit('flutter-screen-cambios', data);
+                console.log(`📡 Cambios Flutter Screen sincronizados en sala: ${data.sala}`);
+                console.log(`   - Usuario: ${data.usuario}`);
+                console.log(`   - Clase: ${data.cellId}`);
+                console.log(`   - Componentes: ${data.screen?.components?.length || 0}`);
+            } catch (error) {
+                console.error('❌ Error al sincronizar cambios Flutter Screen:', error);
+                // Aún así emitir el cambio para sincronización en tiempo real
+                cliente.broadcast.to(data.sala).emit('flutter-screen-cambios', data);
+            }
+        } else {
+            // Si no hay sala, emitir a todos excepto al emisor
+            cliente.broadcast.emit('flutter-screen-cambios', data);
+            console.log('Cambios Flutter Screen sincronizados globalmente');
+        }
+    });
+};
+
 // ========== FUNCIONES EXISTENTES OPTIMIZADAS ==========
 // CREART UNA SALA DE TRABAJO (Legacy - mantener por compatibilidad)
 export const crearSala = async (cliente: Socket, io: socketIO.Server) => {

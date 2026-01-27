@@ -286,3 +286,72 @@ COMMENT ON COLUMN snapshot_diagrama.diagrama_json IS 'Estado completo del diagra
 COMMENT ON COLUMN mensaje_attachment.transcripcion IS 'Texto transcrito del audio (Whisper, AssemblyAI, etc.)';
 COMMENT ON COLUMN mensaje_attachment.analisis_ia IS 'Análisis visual de Claude: clases detectadas, estructura UML, etc.';
 COMMENT ON COLUMN clase_uml.cell_id IS 'ID de la celda en JointJS para sincronización con el frontend';
+
+-- ============================================
+-- FLUTTER SCREENS (Pantallas generadas desde UML)
+-- ============================================
+
+-- Tabla: flutter_screen
+-- Almacena las pantallas Flutter vinculadas a clases UML
+CREATE TABLE IF NOT EXISTS flutter_screen (
+    id_screen SERIAL PRIMARY KEY,
+    id_clase INTEGER NOT NULL UNIQUE,
+    nombre_screen VARCHAR(255),
+    componentes_json JSONB NOT NULL,  -- Array de componentes personalizados
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_actualizacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_clase) REFERENCES clase_uml(id_clase) ON DELETE CASCADE
+);
+
+-- Tabla: flutter_component
+-- Almacena referencias entre componentes visuales y atributos/métodos UML
+CREATE TABLE IF NOT EXISTS flutter_component (
+    id_component SERIAL PRIMARY KEY,
+    id_screen INTEGER NOT NULL,
+    id_atributo INTEGER,  -- Referencia al atributo UML (NULL si es componente visual puro)
+    id_metodo INTEGER,    -- Referencia al método UML (NULL si es componente visual puro)
+    label_custom VARCHAR(255),
+    placeholder_custom VARCHAR(500),
+    position INTEGER NOT NULL,
+    tipo_componente VARCHAR(100) NOT NULL,  -- TextField, ElevatedButton, Container
+    propiedades_json JSONB,  -- Propiedades adicionales del componente
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_screen) REFERENCES flutter_screen(id_screen) ON DELETE CASCADE,
+    FOREIGN KEY (id_atributo) REFERENCES atributo_clase(id_atributo) ON DELETE SET NULL,
+    FOREIGN KEY (id_metodo) REFERENCES metodo_clase(id_metodo) ON DELETE SET NULL
+);
+
+-- Índices para flutter screens
+CREATE INDEX IF NOT EXISTS idx_flutter_screen_clase ON flutter_screen(id_clase);
+CREATE INDEX IF NOT EXISTS idx_flutter_component_screen ON flutter_component(id_screen);
+CREATE INDEX IF NOT EXISTS idx_flutter_component_atributo ON flutter_component(id_atributo);
+CREATE INDEX IF NOT EXISTS idx_flutter_component_metodo ON flutter_component(id_metodo);
+
+-- Comentarios
+COMMENT ON TABLE flutter_screen IS 'Almacena las pantallas Flutter generadas desde clases UML con componentes personalizados';
+COMMENT ON TABLE flutter_component IS 'Vinculación entre componentes visuales de Flutter y atributos/métodos de UML con customizaciones';
+COMMENT ON COLUMN flutter_screen.componentes_json IS 'Array JSON con todos los componentes de la pantalla (orden visual + customizaciones)';
+COMMENT ON COLUMN flutter_component.id_atributo IS 'Referencia al atributo UML que representa este componente (NULL para componentes sin referencia)';
+COMMENT ON COLUMN flutter_component.id_metodo IS 'Referencia al método UML que representa este componente (NULL para componentes sin referencia)';
+COMMENT ON COLUMN flutter_component.label_custom IS 'Etiqueta personalizada del componente (puede diferir del nombre en UML)';
+COMMENT ON COLUMN flutter_component.placeholder_custom IS 'Texto de placeholder personalizado para inputs';
+
+-- ============================================
+-- TRIGGER PARA FLUTTER SCREENS
+-- ============================================
+
+-- Función para actualizar fecha_actualizacion en flutter_screen
+CREATE OR REPLACE FUNCTION actualizar_fecha_flutter_screen()
+RETURNS TRIGGER AS $$
+BEGIN
+    NEW.fecha_actualizacion = CURRENT_TIMESTAMP;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trigger_actualizar_fecha_flutter_screen ON flutter_screen;
+CREATE TRIGGER trigger_actualizar_fecha_flutter_screen
+BEFORE UPDATE ON flutter_screen
+FOR EACH ROW
+EXECUTE FUNCTION actualizar_fecha_flutter_screen();
+

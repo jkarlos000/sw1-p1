@@ -52,7 +52,10 @@
       [class.visible]="flutterScreenActual !== null">
       <app-flutter-preview 
         [screen]="flutterScreenActual"
-        (cerrar)="cerrarFlutterPanel()">
+        [atributos]="claseSeleccionada?.atributos || []"
+        [metodos]="claseSeleccionada?.metodos || []"
+        (cerrar)="cerrarFlutterPanel()"
+        (cambiosGuardados)="onFlutterScreenCambios($event)">
       </app-flutter-preview>
     </div>
 

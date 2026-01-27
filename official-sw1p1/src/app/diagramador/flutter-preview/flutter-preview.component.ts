@@ -1,6 +1,6 @@
 // ...existing code...
 // ...existing code...
-import { Component, Input, OnInit, Output, EventEmitter, ViewChild, ElementRef } from '@angular/core';
+import { Component, Input, OnInit, Output, EventEmitter, ViewChild, ElementRef, OnChanges, SimpleChanges, ChangeDetectorRef, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
@@ -14,14 +14,17 @@ import { ConfigService } from '../../common/services/config.service';
   templateUrl: './flutter-preview.component.html',
   styleUrls: ['./flutter-preview.component.css']
 })
-export class FlutterPreviewComponent implements OnInit {
+export class FlutterPreviewComponent implements OnInit, OnChanges {
   public historialEstados: FlutterScreen[] = [];
   public indiceHistorial: number = -1;
   public paletaDraggedType: FlutterComponent['type'] | null = null;
   public selectedComponentIndex: number | null = null;
   public selectedComponent: FlutterComponent | null = null;
   @Input() screen: FlutterScreen | null = null;
+  @Input() atributos: any[] = [];
+  @Input() metodos: any[] = [];
   @Output() cerrar = new EventEmitter<void>();
+  @Output() cambiosGuardados = new EventEmitter<FlutterScreen>();
   @ViewChild('inputFile') inputFile!: ElementRef<HTMLInputElement>;
   public modoEdicion: boolean = false;
   public draggedIndex: number | null = null;
@@ -62,6 +65,11 @@ export class FlutterPreviewComponent implements OnInit {
     this.historialEstados.push(estadoCopia);
     this.indiceHistorial++;
     console.log('💾 Estado guardado en historial. Total:', this.historialEstados.length);
+    
+    // 🔄 Emitir cambios guardados para que se sincronicen al cache
+    this.cambiosGuardados.emit(this.screen);
+    console.log('📤 Cambios emitidos:', this.screen?.className);
+    
     // Regenerar código Dart si está visible
     if (this.mostrarCodigoDart) {
       this.generarCodigoDart();
@@ -136,148 +144,154 @@ export class FlutterPreviewComponent implements OnInit {
   }
 
   /**
-   * Genera el código Dart basado en la pantalla actual
+   * Método de ciclo de vida para detectar cambios en inputs
+   */
+  ngOnChanges(changes: SimpleChanges): void {
+    // Si el screen cambió, regenerar código si está visible
+    if (changes['screen'] && !changes['screen'].firstChange && this.mostrarCodigoDart) {
+      console.log('🔄 Screen detectó cambios, regenerando código Dart...');
+      this.generarCodigoDart();
+    }
+  }
+
+  /**
+   * Genera el código Dart basado en los componentes visuales (orden del screen)
    */
   private generarCodigoDart(): void {
     if (!this.screen) return;
 
     const className = this.screen.className || 'MiPantalla';
     const components = this.screen.components || [];
+    const metodos = this.metodos || [];
+
+    console.log(`📝 Generando código Dart para ${className}`);
+    console.log(`   - Componentes visuales: ${components.length}`);
+    console.log(`   - Métodos: ${metodos.length}`);
+    console.log(`   - Orden de componentes: ${components.map(c => c.label).join(' → ')}`);
 
     // Generar imports
     let codigo = `import 'package:flutter/material.dart';\n\n`;
 
-    // Generar clase principal
-    codigo += `class ${className}Screen extends StatefulWidget {\n`;
+    // Generar clase principal como StatelessWidget
+    codigo += `class ${className}Screen extends StatelessWidget {\n`;
     codigo += `  const ${className}Screen({Key? key}) : super(key: key);\n\n`;
-    codigo += `  @override\n`;
-    codigo += `  State<${className}Screen> createState() => _${className}ScreenState();\n`;
-    codigo += `}\n\n`;
 
-    // Generar State
-    codigo += `class _${className}ScreenState extends State<${className}Screen> {\n`;
-
-    // Agregar controllers si hay TextFields
-    const hasTextFields = components.some(c => c.type === 'TextField');
-    if (hasTextFields) {
-      codigo += `  late TextEditingController _controller;\n\n`;
-      codigo += `  @override\n`;
-      codigo += `  void initState() {\n`;
-      codigo += `    super.initState();\n`;
-      codigo += `    _controller = TextEditingController();\n`;
-      codigo += `  }\n\n`;
-      codigo += `  @override\n`;
-      codigo += `  void dispose() {\n`;
-      codigo += `    _controller.dispose();\n`;
-      codigo += `    super.dispose();\n`;
-      codigo += `  }\n\n`;
+    // Propiedades basadas en atributos UML (no en orden visual)
+    if (this.atributos.length > 0) {
+      codigo += `  // Properties\n`;
+      this.atributos.forEach(attr => {
+        const tipo = this.mapearTipoDart(attr.tipo);
+        codigo += `  final ${tipo} ${attr.titulo};\n`;
+      });
+      codigo += `\n`;
     }
 
-    // Build method
+    // TextEditingControllers solo para componentes String del preview visual
+    const stringComponents = components.filter(c => c.type === 'TextField');
+    if (stringComponents.length > 0) {
+      codigo += `  // Controllers for input\n`;
+      stringComponents.forEach(comp => {
+        codigo += `  final TextEditingController ${comp.label}Controller = TextEditingController();\n`;
+      });
+      codigo += `\n`;
+    }
+
     codigo += `  @override\n`;
     codigo += `  Widget build(BuildContext context) {\n`;
     codigo += `    return Scaffold(\n`;
     codigo += `      appBar: AppBar(\n`;
     codigo += `        title: const Text('${className}'),\n`;
-    codigo += `        backgroundColor: Colors.blue,\n`;
+    codigo += `        backgroundColor: const Color(0xFF2196F3),\n`;
     codigo += `      ),\n`;
-    codigo += `      body: Padding(\n`;
+    codigo += `      body: SingleChildScrollView(\n`;
     codigo += `        padding: const EdgeInsets.all(16.0),\n`;
-    codigo += `        child: SingleChildScrollView(\n`;
-    codigo += `          child: Column(\n`;
-    codigo += `            children: [\n`;
+    codigo += `        child: Column(\n`;
+    codigo += `          crossAxisAlignment: CrossAxisAlignment.stretch,\n`;
+    codigo += `          children: [\n`;
 
-    // Agregar componentes
-    components.forEach((comp, index) => {
-      const padding = '              ';
-      const size = this.getSizeClassValue(comp.size || 'medium');
-
-      switch (comp.type) {
-        case 'TextField':
-          codigo += `${padding}TextField(\n`;
-          codigo += `${padding}  controller: _controller,\n`;
-          codigo += `${padding}  decoration: InputDecoration(\n`;
-          codigo += `${padding}    labelText: '${comp.label}',\n`;
-          codigo += `${padding}    hintText: '${comp.placeholder || 'Ingrese ' + comp.label}',\n`;
-          codigo += `${padding}    border: OutlineInputBorder(),\n`;
-          codigo += `${padding}  ),\n`;
-          codigo += `${padding}),\n`;
-          if (index < components.length - 1) codigo += `${padding}const SizedBox(height: 16),\n`;
-          break;
-
-        case 'ElevatedButton':
-        case 'Button':
-          codigo += `${padding}ElevatedButton(\n`;
-          codigo += `${padding}  onPressed: () {},\n`;
-          if (comp.color && comp.color !== '#2196F3') {
-            codigo += `${padding}  style: ElevatedButton.styleFrom(\n`;
-            codigo += `${padding}    backgroundColor: Color(0x${comp.color.substring(1)}),\n`;
-            codigo += `${padding}  ),\n`;
-          }
-          codigo += `${padding}  child: Text('${comp.label}'),\n`;
-          codigo += `${padding}),\n`;
-          if (index < components.length - 1) codigo += `${padding}const SizedBox(height: 16),\n`;
-          break;
-
-        case 'TextButton':
-          codigo += `${padding}TextButton(\n`;
-          codigo += `${padding}  onPressed: () {},\n`;
-          if (comp.color && comp.color !== '#2196F3') {
-            codigo += `${padding}  style: TextButton.styleFrom(\n`;
-            codigo += `${padding}    foregroundColor: Color(0x${comp.color.substring(1)}),\n`;
-            codigo += `${padding}  ),\n`;
-          }
-          codigo += `${padding}  child: Text('${comp.label}'),\n`;
-          codigo += `${padding}),\n`;
-          if (index < components.length - 1) codigo += `${padding}const SizedBox(height: 16),\n`;
-          break;
-
-        case 'Icon':
-          codigo += `${padding}const Icon(Icons.star, size: 40, color: Colors.yellow),\n`;
-          if (index < components.length - 1) codigo += `${padding}const SizedBox(height: 16),\n`;
-          break;
-
-        case 'Container':
-          codigo += `${padding}Container(\n`;
-          codigo += `${padding}  width: double.infinity,\n`;
-          codigo += `${padding}  height: ${size},\n`;
-          codigo += `${padding}  decoration: BoxDecoration(\n`;
-          codigo += `${padding}    color: Colors.grey[300],\n`;
-          codigo += `${padding}    borderRadius: BorderRadius.circular(8),\n`;
-          codigo += `${padding}  ),\n`;
-          codigo += `${padding}  child: Center(child: Text('${comp.label}')),\n`;
-          codigo += `${padding}),\n`;
-          if (index < components.length - 1) codigo += `${padding}const SizedBox(height: 16),\n`;
-          break;
-
-        default:
-          codigo += `${padding}// ${comp.type}: ${comp.label}\n`;
+    // 🔥 Generar widgets en el ORDEN VISUAL de los componentes
+    components.forEach((component, idx) => {
+      if (component.type === 'TextField') {
+        codigo += `            TextField(\n`;
+        codigo += `              controller: ${component.label}Controller,\n`;
+        codigo += `              decoration: InputDecoration(\n`;
+        codigo += `                labelText: '${component.label}',\n`;
+        codigo += `                hintText: '${component.placeholder || 'Ingrese ' + component.label}',\n`;
+        codigo += `                border: OutlineInputBorder(\n`;
+        codigo += `                  borderRadius: BorderRadius.circular(8),\n`;
+        codigo += `                ),\n`;
+        codigo += `              ),\n`;
+        codigo += `            ),\n`;
+        codigo += `            const SizedBox(height: 16),\n`;
+      } else if (component.type.includes('Button')) {
+        const buttonLabel = this.camelCaseASnakeCase(component.label);
+        codigo += `            ElevatedButton.icon(\n`;
+        codigo += `              onPressed: () => ${component.label}(),\n`;
+        codigo += `              icon: const Icon(Icons.play_arrow),\n`;
+        codigo += `              label: Text('${buttonLabel}'),\n`;
+        codigo += `            ),\n`;
+        codigo += `            const SizedBox(height: 16),\n`;
       }
     });
 
     // Cerrar Column
-    codigo += `            ],\n`;
-    codigo += `          ),\n`;
+    codigo += `          ],\n`;
     codigo += `        ),\n`;
     codigo += `      ),\n`;
     codigo += `    );\n`;
-    codigo += `  }\n`;
+    codigo += `  }\n\n`;
+
+    // Generar métodos basados en UML
+    if (metodos.length > 0) {
+      codigo += `  // Methods\n`;
+      metodos.forEach((metodo, index) => {
+        const tipoRetorno = this.mapearTipoDart(metodo.tipoRetorno || 'void');
+        const parametros = (metodo.parametros || []).map((p: any) => 
+          `${this.mapearTipoDart(p.tipo)} ${p.nombre}`
+        ).join(', ');
+        
+        codigo += `  ${tipoRetorno} ${metodo.nombre}(${parametros}) {\n`;
+        codigo += `    // TODO: Implementar ${metodo.nombre}\n`;
+        codigo += `    print('${metodo.nombre} ejecutado');\n`;
+        if (tipoRetorno !== 'void') {
+          codigo += `    return null;\n`;
+        }
+        codigo += `  }\n`;
+        if (index < metodos.length - 1) codigo += `\n`;
+      });
+    }
+
     codigo += `}\n`;
 
     this.codigoDartGenerado = codigo;
-    console.log('📝 Código Dart generado para:', className);
+    console.log('✅ Código Dart generado (completo) usando orden visual para:', className);
   }
 
   /**
-   * Obtiene el valor numérico del tamaño para Dart
+   * Mapea tipos UML a tipos Dart
    */
-  private getSizeClassValue(size: string): number {
-    const sizeMap: { [key: string]: number } = {
-      small: 80,
-      medium: 150,
-      large: 250
+  private mapearTipoDart(tipo: string): string {
+    const mapa: { [key: string]: string } = {
+      'String': 'String',
+      'Integer': 'int',
+      'Long': 'int',
+      'Float': 'double',
+      'Double': 'double',
+      'Boolean': 'bool',
+      'Date': 'DateTime',
+      'void': 'void',
+      'Object': 'dynamic',
+      'List': 'List',
+      'Array': 'List'
     };
-    return sizeMap[size] || 150;
+    return mapa[tipo] || 'dynamic';
+  }
+
+  /**
+   * Convierte camelCase a SNAKE_CASE
+   */
+  private camelCaseASnakeCase(texto: string): string {
+    return texto.replace(/([a-z])([A-Z])/g, '$1_$2').toUpperCase();
   }
 
   /**
@@ -450,8 +464,13 @@ export class FlutterPreviewComponent implements OnInit {
     components.forEach((comp, idx) => {
       comp.position = idx + 1;
     });
-    // Actualizar el screen
-    this.screen.components = components;
+    
+    // 🔥 IMPORTANTE: Crear una nueva referencia del screen para que Angular detecte el cambio
+    this.screen = {
+      ...this.screen,
+      components: components
+    };
+    
     // Si el componente seleccionado se movió, actualizar el índice
     if (this.selectedComponentIndex !== null) {
       if (this.selectedComponentIndex === this.draggedIndex) {
@@ -470,10 +489,18 @@ export class FlutterPreviewComponent implements OnInit {
       this.selectedComponent = this.screen.components[this.selectedComponentIndex];
     }
     console.log('✅ Componente reordenado de', this.draggedIndex, 'a', dropIndex);
+    console.log('📋 Nuevo orden:', this.screen.components.map(c => c.label).join(' → '));
+    
     // Limpiar estado
     this.draggedIndex = null;
     this.dragOverIndex = null;
     this.guardarEstado();
+    
+    // 🔄 Forzar regeneración de código Dart si está visible
+    if (this.mostrarCodigoDart) {
+      console.log('🔄 Regenerando código Dart inmediatamente...');
+      this.generarCodigoDart();
+    }
   }
 
   /**
@@ -664,10 +691,25 @@ export class FlutterPreviewComponent implements OnInit {
    */
   eliminarComponente(): void {
     if (!this.screen || this.selectedComponentIndex === null) return;
-    this.screen.components.splice(this.selectedComponentIndex, 1);
+    
+    const nuevosComponentes = this.screen.components.filter((_, idx) => idx !== this.selectedComponentIndex);
+    
+    // 🔥 Crear nueva referencia del screen
+    this.screen = {
+      ...this.screen,
+      components: nuevosComponentes
+    };
+    
     this.selectedComponent = null;
     this.selectedComponentIndex = null;
+    console.log('🗑️ Componente eliminado');
+    
     this.guardarEstado();
+    
+    // 🔄 Regenerar código Dart si está visible
+    if (this.mostrarCodigoDart) {
+      this.generarCodigoDart();
+    }
   }
 
   /**
@@ -689,18 +731,31 @@ export class FlutterPreviewComponent implements OnInit {
     
     // Insertar después del componente actual
     const indexNuevo = this.selectedComponentIndex + 1;
-    this.screen.components.splice(indexNuevo, 0, componenteCopia);
+    const nuevosComponentes = [...this.screen.components];
+    nuevosComponentes.splice(indexNuevo, 0, componenteCopia);
     
     // Actualizar posiciones
-    this.screen.components.forEach((comp, idx) => {
+    nuevosComponentes.forEach((comp, idx) => {
       comp.position = idx + 1;
     });
+    
+    // 🔥 Crear nueva referencia del screen
+    this.screen = {
+      ...this.screen,
+      components: nuevosComponentes
+    };
     
     // Seleccionar el nuevo componente duplicado
     this.selectedComponentIndex = indexNuevo;
     this.selectedComponent = componenteCopia;
     
     console.log('📋 Componente duplicado:', componenteCopia.label);
+    
     this.guardarEstado();
+    
+    // 🔄 Regenerar código Dart si está visible
+    if (this.mostrarCodigoDart) {
+      this.generarCodigoDart();
+    }
   }
 }

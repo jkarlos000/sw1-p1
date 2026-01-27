@@ -6,41 +6,67 @@
     <div class="toolbar-container"></div>
   </div>
   <div class="app-body">
-    <div class="stencil-container"></div>
-    <div class="paper-container"></div>
-    
-    <!-- 🆕 EDITOR UML 2.5 - Panel derecho mejorado -->
-    <div class="inspector-container-custom" [class.mostrar-editor]="claseSeleccionada">
-      @if (claseSeleccionada) {
-        <div class="uml-editor-panel">
-          <div class="uml-editor-header">
-            <h3>{{ claseSeleccionada.nombre || 'Clase' }}</h3>
-            <button class="btn-close" (click)="cerrarEditor()">✕</button>
-          </div>
-          
-          <div class="uml-editor-name">
-            <label>Nombre de la Clase:</label>
-            <input 
-              type="text" 
-              [(ngModel)]="claseSeleccionada.nombre"
-              (input)="onNombreClaseCambio()"
-              class="class-name-input" />
-          </div>
+    <!-- Contenedor UML arriba (con stencil + paper + inspector) -->
+    <div class="uml-diagram-wrapper">
+      <div class="stencil-container"></div>
+      <div class="paper-container"></div>
+      
+      <!-- 🆕 EDITOR UML 2.5 - Panel derecho mejorado -->
+      <div class="inspector-container-custom" [class.mostrar-editor]="claseSeleccionada">
+        @if (claseSeleccionada) {
+          <div class="uml-editor-panel">
+            <div class="uml-editor-header">
+              <h3>{{ claseSeleccionada.nombre || 'Clase' }}</h3>
+              <button class="btn-close" (click)="cerrarEditor()">✕</button>
+            </div>
+            
+            <div class="uml-editor-name">
+              <label>Nombre de la Clase:</label>
+              <input 
+                type="text" 
+                [(ngModel)]="claseSeleccionada.nombre"
+                (input)="onNombreClaseCambio()"
+                class="class-name-input" />
+            </div>
 
-          <app-uml-class-editor
-            [atributos]="claseSeleccionada.atributos"
-            [metodos]="claseSeleccionada.metodos"
-            (cambio)="onClaseEditada($event)">
-          </app-uml-class-editor>
-        </div>
-      }
+            <app-uml-class-editor
+              [atributos]="claseSeleccionada.atributos"
+              [metodos]="claseSeleccionada.metodos"
+              (cambio)="onClaseEditada($event)">
+            </app-uml-class-editor>
+          </div>
+        }
+      </div>
+      
+      <!-- Inspector tradicional de JointJS (se oculta cuando hay clase seleccionada) -->
+      <div class="inspector-container" [class.ocultar-inspector]="claseSeleccionada"></div>
+      
+      <!-- READ : NAVBAR OPCIONES DEL GRAFICADOR -->
+      <div class="navigator-container"></div>
     </div>
     
-    <!-- Inspector tradicional de JointJS (se oculta cuando hay clase seleccionada) -->
-    <div class="inspector-container" [class.ocultar-inspector]="claseSeleccionada"></div>
-    
-    <!-- READ : NAVBAR OPCIONES DEL GRAFICADOR -->
-    <div class="navigator-container"></div>
+    <!-- 📱 Pizarra Flutter abajo (solo aparece cuando hay screen generado) -->
+    <div 
+      id="flutter-panel"
+      class="flutter-preview-container-wrapper" 
+      [class.visible]="flutterScreenActual !== null">
+      <app-flutter-preview 
+        [screen]="flutterScreenActual"
+        [atributos]="claseSeleccionada?.atributos || []"
+        [metodos]="claseSeleccionada?.metodos || []"
+        (cerrar)="cerrarFlutterPanel()"
+        (cambiosGuardados)="onFlutterScreenCambios($event)">
+      </app-flutter-preview>
+    </div>
+
+    <!-- Botón flotante para volver al diagrama UML -->
+    <button 
+      *ngIf="flutterScreenActual !== null" 
+      class="btn-scroll-top"
+      (click)="scrollToDiagram()"
+      title="Volver al diagrama UML">
+      ⬆️
+    </button>
   </div>
   <!-- MENSAJE AL CLIENTE PARA QUE COMPARTA LA SALA -->
   <div

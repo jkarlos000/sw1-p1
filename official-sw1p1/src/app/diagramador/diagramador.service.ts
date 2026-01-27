@@ -47,6 +47,32 @@ export class DiagramadorService {
     }
   }
 
+  /**
+   * 🔄 Emite cambios en el Flutter Screen a todos los usuarios en la sala
+   */
+  emitFlutterScreenCambios(cellId: string, screen: any): void {
+    const salaDiagrama = this.userAuth.getSalaDiagrama();
+    const usuario = this.userAuth.getUserAuth();
+    
+    if (salaDiagrama && usuario) {
+      this.wsService.emit('flutter-screen-cambios', {
+        sala: salaDiagrama.nombre,
+        cellId,
+        screen,
+        usuario: usuario.email,
+        timestamp: new Date().toISOString()
+      });
+      console.log(`📤 Emitiendo cambios Flutter Screen para clase: ${cellId}`);
+    }
+  }
+
+  /**
+   * 📥 Escucha cambios en el Flutter Screen de otros usuarios
+   */
+  onListenFlutterScreenCambios() {
+    return this.wsService.listen('flutter-screen-cambios');
+  }
+
   contenidoVerifDiagramaBD(nombreSala: string): Observable<any> {
     return this.http.get<any>(`${this.apiUrl}/salas/` + nombreSala);
   }

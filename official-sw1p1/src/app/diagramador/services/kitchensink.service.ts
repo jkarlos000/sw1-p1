@@ -10,6 +10,7 @@ This Source Code Form is subject to the terms of the JointJS+ Trial License
 file, You can obtain one at https://www.jointjs.com/license
  or from the JointJS+ archive as was distributed by client IO. See the LICENSE file.*/
 import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { DirectedGraph } from '@joint/layout-directed-graph';
 import * as joint from '@joint/plus';
 import { saveAs } from 'file-saver';
@@ -66,6 +67,7 @@ class KitchenSinkService {
   onImportDiagram?: () => void;
 
   configService: ConfigService;
+  router: Router;
 
   constructor(
     el: HTMLElement,
@@ -75,10 +77,13 @@ class KitchenSinkService {
     haloService: HaloService,
     keyboardService: KeyboardService,
     http: HttpClient,
-    configService: ConfigService
+    configService: ConfigService,
+    router: Router,
+    private clasePersistenciaService?: any
   ) {
     this.http = http;
     this.configService = configService;
+    this.router = router;
     this.el = el;
     // apply current joint js theme
     const view = new joint.mvc.View({ el });
@@ -1956,6 +1961,154 @@ IMPORTANTE:
         a.click();
         window.URL.revokeObjectURL(url);
       },
+      'flutterExportar:pointerclick': () => {
+        // Get diagram elements (UML classes)
+        const elementos = this.graph.getElements();
+        
+        console.log('🔍 DEBUG: Total elementos in diagram:', elementos.length);
+        
+        // Convert UML classes to Flutter screens
+        const screens = elementos.map((el: any, index: number) => {
+          // Get element attributes - JointJS structure
+          const attrs = el.attributes || {};
+          const cellId = el.id;
+          
+          console.log(`🔍 ELEMENT ${index}:`, {
+            keys: Object.keys(attrs),
+            cellId: cellId
+          });
+          
+          // 🔍 PRIMERO: Intentar obtener datos del cache (cambios modificados)
+          let className = '';
+          let atributos: any[] = [];
+          let metodos: any[] = [];
+          
+          if (this.clasePersistenciaService) {
+            const datosEnCache = this.clasePersistenciaService.obtenerDelCache(cellId);
+            if (datosEnCache) {
+              console.log(`✅ Usando datos del cache para ${cellId}:`, datosEnCache);
+              className = datosEnCache.nombre;
+              atributos = datosEnCache.atributos || [];
+              metodos = datosEnCache.metodos || [];
+              console.log(`  → Cache: ${atributos.length} attributes, ${metodos.length} methods`);
+            }
+          }
+          
+          // 🔄 SI NO HAY CACHE: Extraer desde el diagrama (datos originales)
+          if (!className) {
+            // Extract the class name from headerText
+            // The actual JointJS structure: attrs.attrs.headerText.text
+            className = attrs.attrs?.headerText?.text || `Screen${index + 1}`;
+            className = className.trim() || `Screen${index + 1}`;
+            
+            // ⭐ FIXED: Extract attributes and methods from bodyText.textWrap.text (UML format)
+            // The actual structure: attrs.attrs.bodyText.textWrap.text
+            const bodyText = attrs.attrs?.bodyText?.textWrap?.text || '';
+            console.log(`  ClassName: ${className}, BodyText length: ${bodyText.length}`);
+            
+            if (bodyText) {
+              const lineas = bodyText.split('\n');
+              let enSeccionMetodos = false;
+              
+              for (let i = 0; i < lineas.length; i++) {
+                const linea = lineas[i].trim();
+                
+                // Skip separator lines
+                if (linea.includes('───') || linea === '---') {
+                  enSeccionMetodos = true;
+                  continue;
+                }
+                
+                // Skip empty lines
+                if (!linea || linea === '') {
+                  continue;
+                }
+                
+                // Check if it's a method: contains ( ) and :
+                if (linea.includes('(') && linea.includes(')')) {
+                  // Es un método
+                  const metodo = this.parsearMetodoUML(linea);
+                  if (metodo) {
+                    metodos.push(metodo);
+                  }
+                } 
+                // Check if it's an attribute: contains :
+                else if (linea.includes(':')) {
+                  // Es un atributo
+                  const atributo = this.parsearAtributoUML(linea);
+                  if (atributo) {
+                    atributos.push(atributo);
+                  }
+                }
+              }
+            }
+            
+            console.log(`  → Diagram: ${atributos.length} attributes, ${metodos.length} methods`);
+          }
+          
+          // Create components from attributes (TextFields)
+          const components: any[] = atributos.map((attr: any, attrIndex: number) => ({
+            id: `comp_${attrIndex}`,
+            type: 'TextField',
+            label: attr.titulo || `field${attrIndex + 1}`,
+            placeholder: `Ingrese ${attr.titulo || 'valor'}`,
+            position: attrIndex
+          }));
+          
+          // Add method buttons
+          metodos.forEach((metodo: any, metodIndex: number) => {
+            components.push({
+              id: `btn_${metodIndex}`,
+              type: 'ElevatedButton',
+              label: metodo.nombre || `Acción`,
+              position: atributos.length + metodIndex,
+              placeholder: `Click para ${metodo.nombre}`
+            });
+          });
+          
+          // If no components, add a default welcome message
+          if (components.length === 0) {
+            components.push({
+              id: 'default_text',
+              type: 'Container',
+              label: `Welcome to ${className}`,
+              position: 0,
+              placeholder: ''
+            });
+          }
+          
+          return {
+            className: className,
+            components: components,
+            atributos: atributos,  // Include raw attributes for code generation
+            metodos: metodos       // Include raw methods for code generation
+          };
+        });
+        
+        // If no elements, create a default screen
+        if (screens.length === 0) {
+          screens.push({
+            className: 'HomeScreen',
+            components: [{
+              id: 'default_text',
+              type: 'Container' as const,
+              label: 'Welcome to Flutter',
+              position: 0,
+              placeholder: ''
+            }],
+            atributos: [],
+            metodos: []
+          });
+        }
+        
+        // Navigate with state containing the screens
+        this.router.navigate(['/flutter-export'], {
+          state: {
+            screens: screens,
+            projectName: 'flutter_project_from_diagram'
+          }
+        });
+      },
       'jsonImportar:pointerclick': () => {
         const entrada = document.createElement('input');
         entrada.type = 'file';
@@ -3196,6 +3349,86 @@ public interface ${nombreClase}Repositorio extends JpaRepository<${nombreClase},
   renderPlugin(selector: string, plugin: any): void {
     this.el.querySelector(selector)!.appendChild(plugin.el);
     plugin.render();
+  }
+
+  /**
+   * 📝 Parse a UML attribute string
+   * Format: [+|-|#|~] nombre : tipo [= defaultValue]
+   */
+  private parsearAtributoUML(linea: string): any {
+    // Remove visibility symbols
+    let cleanLine = linea.replace(/^[+\-#~]\s*/, '');
+    
+    // Extract visibility symbol if present
+    const visibilityMatch = linea.match(/^([+\-#~])/);
+    const visibility = this.simboloAVisibilidad(visibilityMatch ? visibilityMatch[1] : '-');
+    
+    // Parse: nombre : tipo [= defaultValue]
+    const match = cleanLine.match(/^(\w+)\s*:\s*(\w+)(?:\s*=\s*(.+))?/);
+    
+    if (match) {
+      return {
+        titulo: match[1].trim(),
+        tipo: match[2].trim(),
+        visibility: visibility,
+        defaultValue: match[3]?.trim()
+      };
+    }
+    
+    return null;
+  }
+
+  /**
+   * 📝 Parse a UML method string
+   * Format: [+|-|#|~] nombre(params) : returnType
+   */
+  private parsearMetodoUML(linea: string): any {
+    // Remove visibility symbols
+    let cleanLine = linea.replace(/^[+\-#~]\s*/, '');
+    
+    // Extract visibility symbol if present
+    const visibilityMatch = linea.match(/^([+\-#~])/);
+    const visibility = this.simboloAVisibilidad(visibilityMatch ? visibilityMatch[1] : '+');
+    
+    // Parse: nombre(params) : returnType
+    const match = cleanLine.match(/^(\w+)\s*\(([^)]*)\)\s*:\s*(\w+)/);
+    
+    if (match) {
+      const parametros: any[] = [];
+      
+      if (match[2]) {
+        const paramsStr = match[2].split(',');
+        paramsStr.forEach((p: string) => {
+          const parts = p.trim().split(':');
+          parametros.push({
+            nombre: parts[0].trim(),
+            tipo: parts.length > 1 ? parts[1].trim() : 'Object'
+          });
+        });
+      }
+      
+      return {
+        nombre: match[1].trim(),
+        parametros: parametros,
+        tipoRetorno: match[3].trim(),
+        visibility: visibility
+      };
+    }
+    
+    return null;
+  }
+
+  /**
+   * Convert UML visibility symbol to modifier
+   */
+  private simboloAVisibilidad(simbolo: string): string {
+    switch (simbolo) {
+      case '+': return 'public';
+      case '-': return 'private';
+      case '#': return 'protected';
+      case '~': return 'package';
+      default: return 'private';
+    }
   }
 }
 

@@ -60,6 +60,7 @@ export default class Server {
       socket.nuevaReunion(cliente, this.io);
       socket.unirseReunion(cliente, this.io);
       socket.changedDiagrama(cliente, this.io);
+      socket.flutterScreenCambios(cliente, this.io);
 
       // ========== CHAT CON IA ==========
       socket.mensajeChatIA(cliente, this.io);

@@ -2,9 +2,12 @@
 .env
 .env.local
 .env.*.local
+.env.production
+.env.development
 
 # Dependencias
 node_modules/
+uploads/
 uplodas/
 npm-debug.log*
 yarn-debug.log*
@@ -59,3 +62,24 @@ nginx/ssl/*.pem
 nginx/ssl/*.key
 nginx/ssl/*.crt
 !nginx/ssl/.gitkeep
+
+# Archivos de configuración local (VPS/producción)
+CONFIGURACION_URLS.md
+DESPLIEGUE_PRODUCCION.md
+setup-ssl.ps1
+setup-ssl.sh
+switch-env.ps1
+switch-env.sh
+
+# Assets locales
+official-sw1p1/src/assets/config.local.json
+
+# BD generadas localmente
+backend-p1sw1/database/schema.sql
+backend-p1sw1/database/seed.sql
+
+# Backups y datos de producción
+backups/
+uploads/
+*.backup.sql
+*.dump

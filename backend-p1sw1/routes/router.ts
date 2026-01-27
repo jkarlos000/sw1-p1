@@ -23,7 +23,15 @@ import {
   eliminarClaseUML,
   guardarClasesMultiples
 } from "../controller/clase-uml.controller";
+import {
+  generarCodigoDart,
+  healthCheck as flutterHealthCheck,
+  interpretarMockup
+} from "../controller/flutter-mockup.controller";
+import { FlutterScreenController } from "../controller/flutter-screen.controller";
 import { uploadMultipleFiles } from "../middleware/upload.middleware";
+import { uploadImagenMockup } from "../middleware/upload-imagen.middleware";
+import { registerFlutterExportRoutes } from "./flutter-export.routes";
 import { pool } from "../database/config";
 const router = Router();
 
@@ -475,5 +483,46 @@ router.get("/uml/clases/:id_sala", obtenerClasesUML);
 
 // Eliminar una clase
 router.delete("/uml/clase/:id_sala/:cell_id", eliminarClaseUML);
+
+// ========================================
+// RUTAS DE FLUTTER SCREENS GENERATOR
+// ========================================
+
+// Health check del servicio Flutter
+router.get("/flutter/health", flutterHealthCheck);
+
+// Generar código Dart desde FlutterScreen
+router.post("/flutter/generar-codigo", generarCodigoDart);
+
+// Interpretar mockup desde imagen con IA
+router.post("/flutter/interpretar-mockup", uploadImagenMockup, interpretarMockup);
+
+// ========================================
+// RUTAS DE FLUTTER SCREENS (Persistencia en BD)
+// ========================================
+const flutterScreenController = new FlutterScreenController(pool);
+
+// Guardar/actualizar pantalla Flutter completa
+router.post("/flutter-screen/save", (req, res) => flutterScreenController.guardarFlutterScreen(req, res));
+
+// Obtener pantalla Flutter por clase UML
+router.get("/flutter-screen/:id_clase", (req, res) => flutterScreenController.obtenerFlutterScreen(req, res));
+
+// Actualizar componente individual
+router.put("/flutter-screen/component/:id_component", (req, res) => flutterScreenController.actualizarComponente(req, res));
+
+// Eliminar pantalla Flutter
+router.delete("/flutter-screen/:id_screen", (req, res) => flutterScreenController.eliminarFlutterScreen(req, res));
+
+// 🔄 SINCRONIZACIÓN: Crear Flutter Screen para clase antigua
+router.post("/flutter-screen/sincronizar/:id_sala/:id_clase", (req, res) => flutterScreenController.sincronizarClaseAntigua(req, res));
+
+// 🔄 MIGRACIÓN MASIVA: Sincronizar todas las clases de una sala
+router.post("/flutter-screen/migrar-sala/:id_sala", (req, res) => flutterScreenController.migrarSalaCompleta(req, res));
+
+// ========================================
+// RUTAS DE FLUTTER PROJECT EXPORT (Sprint 4)
+// ========================================
+registerFlutterExportRoutes(router);
 
 export default router;

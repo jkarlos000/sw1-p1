@@ -1,0 +1,223 @@
+<div class="flutter-preview-container" *ngIf="screen" (keydown)="onKeyDown($event)" tabindex="0">
+  <!-- Header con título y controles -->
+  <div class="flutter-preview-header">
+    <div class="header-title">
+      <span class="flutter-icon">📱</span>
+      <input 
+        type="text" 
+        class="screen-name-input"
+        [(ngModel)]="screen.className"
+        (change)="guardarEstadoEdicion()"
+        title="Haz clic para renombrar la pantalla" />
+    </div>
+    <div class="header-actions">
+      <!-- Botón toggle modo edición -->
+      <button 
+        class="btn-toggle-mode" 
+        [class.active]="modoEdicion"
+        (click)="toggleModoEdicion()"
+        title="{{ modoEdicion ? 'Cambiar a modo vista' : 'Cambiar a modo edición' }}">
+        <span class="icon">{{ modoEdicion ? '👁️' : '✏️' }}</span>
+      </button>
+      <!-- Botones de deshacer/rehacer -->
+      <button 
+        class="btn-undo" 
+        (click)="deshacer()"
+        [disabled]="indiceHistorial <= 0"
+        title="Deshacer (Ctrl+Z)">
+        ↩️
+      </button>
+      <button 
+        class="btn-redo" 
+        (click)="rehacer()"
+        [disabled]="indiceHistorial >= historialEstados.length - 1"
+        title="Rehacer (Ctrl+Y)">
+        ↪️
+      </button>
+      <!-- Botón para mostrar/ocultar código Dart -->
+      <button 
+        class="btn-dart-code"
+        [class.active]="mostrarCodigoDart"
+        (click)="toggleCodigoDart()"
+        title="Ver vista previa de código Dart">
+        &lt;&gt; Dart
+      </button>
+      <!-- Botón para actualizar desde dibujo (mockup) -->
+      <button 
+        class="btn-mockup-upload"
+        (click)="abrirSelectorImagen()"
+        [disabled]="cargandoMockup"
+        title="Subir foto de mockup para interpretar con IA">
+        {{ cargandoMockup ? '⏳ Procesando...' : '📸 Mockup' }}
+      </button>
+      <input 
+        #inputFile
+        type="file" 
+        accept="image/*"
+        style="display: none"
+        (change)="onImagenSeleccionada($event)">
+    </div>
+  </div>
+  <div class="flutter-content-wrapper">
+    <div class="componentes-paleta">
+      <h4>Componentes</h4>
+      <div class="paleta-items">
+        <div 
+          *ngFor="let comp of componentesPaleta" 
+          class="paleta-item"
+          draggable="true"
+          (dragstart)="onPaletaDragStart($event, comp.type)"
+          title="Arrastra para agregar {{ comp.label }}">
+          <span class="paleta-icon">{{ comp.icon }}</span>
+          <span class="paleta-label">{{ comp.label }}</span>
+        </div>
+      </div>
+      <div class="paleta-info">
+        <small>💡 Sprint 3: Arrastra componentes al preview</small>
+      </div>
+    </div>
+    <div class="flutter-body-layout">
+      <!-- Dispositivo móvil -->
+      <div class="flutter-device">
+        <div class="device-status-bar">
+          <span class="time">9:41</span>
+          <span class="icons">📶 📡 🔋</span>
+        </div>
+        <div class="flutter-screen">
+          <div class="flutter-appbar">
+            <span class="appbar-title">{{ screen.className }}</span>
+          </div>
+          <div class="flutter-body" [class.modo-edicion]="modoEdicion"
+            (dragover)="onPreviewDragOver($event)"
+            (drop)="onPreviewDrop($event)">
+            <div class="edicion-banner" *ngIf="modoEdicion">
+              ✏️ Modo Edición Activo - Click o arrastra componentes para editar
+            </div>
+            <div 
+              *ngFor="let component of screen.components; let i = index" 
+              class="flutter-component"
+              [class]="getSizeClass(component)"
+              [class.editable]="modoEdicion"
+              [class.dragging]="draggedIndex === i"
+              [class.drag-over]="dragOverIndex === i"
+              [draggable]="modoEdicion"
+              (dragstart)="onDragStart($event, i)"
+              (dragover)="onDragOver($event, i)"
+              (drop)="onDrop($event, i)"
+              (dragleave)="onDragLeave($event)"
+              (dragend)="onDragEnd($event)"
+              (click)="onSelectComponent(i)"
+              [class.selected]="selectedComponentIndex === i">
+              <!-- TextField -->
+              <div *ngIf="component.type === 'TextField'" class="flutter-textfield">
+                <label class="textfield-label">{{ formatLabel(component.label) }}</label>
+                <div class="textfield-input">
+                  <input type="text" [placeholder]="component.placeholder || ('Ingrese ' + component.label)" readonly>
+                </div>
+              </div>
+              <!-- Button / ElevatedButton -->
+              <button 
+                *ngIf="isButton(component.type)" 
+                class="flutter-button"
+                [class]="getButtonClass(component)"
+                [ngStyle]="getButtonStyle(component)">
+                {{ formatLabel(component.label) }}
+              </button>
+              <!-- Icon (si se agrega en el futuro) -->
+              <div *ngIf="component.type === 'Icon'" class="flutter-icon-component">
+                <span class="material-icons">{{ component.label }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="device-navigation-bar">
+          <span class="nav-button">◀</span>
+          <span class="nav-button">⚪</span>
+          <span class="nav-button">☰</span>
+        </div>
+      </div>
+      <!-- Panel lateral de propiedades SOLO FUERA del dispositivo -->
+      <ng-container *ngIf="modoEdicion && selectedComponent">
+        <div class="propiedades-panel">
+          <h4>Propiedades</h4>
+          <div class="propiedad-item">
+            <label>Tipo de componente:</label>
+            <select [(ngModel)]="selectedComponent.type" (change)="guardarEstadoEdicion()">
+              <option *ngFor="let comp of componentesPaleta" [value]="comp.type">{{ comp.label }}</option>
+            </select>
+          </div>
+          <div class="propiedad-item">
+            <label>Nombre:</label>
+            <input type="text" [(ngModel)]="selectedComponent.label" (change)="guardarEstadoEdicion()" />
+          </div>
+          <div class="propiedad-item">
+            <label>Tamaño:</label>
+            <select [(ngModel)]="selectedComponent.size" (change)="guardarEstadoEdicion()">
+              <option value="small">Pequeño</option>
+              <option value="medium">Mediano</option>
+              <option value="large">Grande</option>
+            </select>
+          </div>
+          <div class="propiedad-item" *ngIf="selectedComponent.type === 'TextField'">
+            <label>Placeholder:</label>
+            <input type="text" [(ngModel)]="selectedComponent.placeholder" (change)="guardarEstadoEdicion()" />
+          </div>
+          <div class="propiedad-item" *ngIf="isButton(selectedComponent.type)">
+            <label>Tipo de botón:</label>
+            <select [(ngModel)]="selectedComponent.variant" (change)="guardarEstadoEdicion()">
+              <option value="elevated">Elevated</option>
+              <option value="outlined">Outlined</option>
+              <option value="text">Text</option>
+            </select>
+          </div>
+          <div class="propiedad-item" *ngIf="isButton(selectedComponent.type)">
+            <label>Color del botón:</label>
+            <div class="color-picker-container">
+              <input 
+                type="color" 
+                [(ngModel)]="selectedComponent.color" 
+                class="color-picker-input"
+                (change)="guardarEstadoEdicion()"
+                title="Haz clic para elegir color">
+              <span class="color-display" [style.background-color]="selectedComponent.color || '#2196F3'"></span>
+              <span class="color-hex">{{ selectedComponent.color || '#2196F3' }}</span>
+            </div>
+          </div>
+          <div class="propiedad-item" *ngIf="selectedComponent.type === 'Icon'">
+            <label>Icono:</label>
+            <input type="text" [(ngModel)]="selectedComponent.label" />
+          </div>
+          <div class="propiedad-item">
+            <button class="btn-eliminar" (click)="eliminarComponente()">🗑️ Eliminar componente</button>
+          </div>
+          <div class="propiedad-item">
+            <button class="btn-duplicar" (click)="duplicarComponente()">📋 Duplicar componente</button>
+          </div>
+        </div>
+      </ng-container>
+      <!-- Panel de vista previa de código Dart -->
+      <ng-container *ngIf="mostrarCodigoDart && screen">
+        <div class="codigo-dart-panel">
+          <div class="codigo-dart-header">
+            <h4>Vista previa - {{ screen.className }}.dart</h4>
+            <button class="btn-close-code" (click)="toggleCodigoDart()">✕</button>
+          </div>
+          <div class="codigo-dart-content">
+            <pre><code>{{ codigoDartGenerado }}</code></pre>
+          </div>
+          <div class="codigo-dart-footer">
+            <button class="btn-copy-code" (click)="copiarCodigoAlPortapapeles()">📋 Copiar código</button>
+          </div>
+        </div>
+      </ng-container>
+    </div>
+  </div>
+
+<!-- Estado vacío -->
+<div class="flutter-preview-empty" *ngIf="!screen">
+  <div class="empty-state">
+    <span class="empty-icon">📱</span>
+    <h3>Flutter Preview</h3>
+    <p>Haz clic en una clase del diagrama UML para generar automáticamente un Flutter Screen</p>
+  </div>
+</div>

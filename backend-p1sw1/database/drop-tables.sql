@@ -8,6 +8,10 @@
 -- Eliminar tablas en orden correcto (respetando foreign keys)
 -- ============================================
 
+-- Tablas Flutter Screens
+DROP TABLE IF EXISTS flutter_component CASCADE;
+DROP TABLE IF EXISTS flutter_screen CASCADE;
+
 -- Tablas UML 2.5
 DROP TABLE IF EXISTS parametro_metodo CASCADE;
 DROP TABLE IF EXISTS metodo_clase CASCADE;
@@ -26,9 +30,13 @@ DROP TABLE IF EXISTS asistencia CASCADE;
 DROP TABLE IF EXISTS sala CASCADE;
 DROP TABLE IF EXISTS usuario CASCADE;
 
+-- Tabla de auditoría de migraciones
+DROP TABLE IF EXISTS migration_log CASCADE;
+
 -- Eliminar funciones y triggers
 DROP FUNCTION IF EXISTS actualizar_fecha_conversacion() CASCADE;
 DROP FUNCTION IF EXISTS actualizar_fecha_clase() CASCADE;
+DROP FUNCTION IF EXISTS actualizar_fecha_flutter_screen() CASCADE;
 
 -- Mensaje de confirmación
 DO $$
@@ -49,5 +57,8 @@ BEGIN
     RAISE NOTICE '  - atributo_clase';
     RAISE NOTICE '  - metodo_clase';
     RAISE NOTICE '  - parametro_metodo';
+    RAISE NOTICE '  - flutter_screen (Flutter Screens)';
+    RAISE NOTICE '  - flutter_component (Flutter Screens)';
+    RAISE NOTICE '  - migration_log (Auditoría)';
     RAISE NOTICE '============================================';
 END $$;

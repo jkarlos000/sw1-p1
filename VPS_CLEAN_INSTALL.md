@@ -124,11 +124,13 @@ docker-compose exec postgres psql -U postgres -d parcial1sw1 -c '\dt'
 ### PASO 6: Iniciar servicios (Fin del downtime)
 
 ```bash
-# Iniciar backend y frontend
-docker-compose up -d backend frontend nginx
+# ⚠️ IMPORTANTE: Reconstruir contenedores con código nuevo
+# (No solo iniciar con imágenes viejas)
 
-# Esperar a que se inicien
-sleep 10
+docker-compose up -d --build backend frontend nginx
+
+# Esperar a que se compilen e inicien (3-5 minutos)
+sleep 180
 
 # Verificar estado
 docker-compose ps
@@ -136,6 +138,8 @@ docker-compose ps
 ```
 
 **✅ Downtime finalizado (~5 minutos totales)**
+
+**NOTA:** El parámetro `--build` es crítico para que los contenedores usen el código nuevo.
 
 ### PASO 7: Verificación post-instalación
 
@@ -299,7 +303,27 @@ SELECT * FROM usuario LIMIT 1;
 
 ---
 
-## 💾 ANTES DE HACER ESTO EN PRODUCCIÓN
+## � DESPUÉS: ACTUALIZAR CONTENEDORES CON NUEVOS CAMBIOS
+
+⚠️ **IMPORTANTE**: Después de una instalación limpia de BD, si el código ha cambiado (nuevo features como Flutter Screens), **TAMBIÉN necesitas reconstruir los contenedores**.
+
+### Por qué:
+- La BD está nueva con las tablas Flutter
+- Pero los contenedores (backend/frontend) todavía tienen código viejo
+- El sitio web mostrará versión antigua sin los nuevos features
+
+### Solución:
+Ver → [VPS_REBUILD_CONTAINERS.md](VPS_REBUILD_CONTAINERS.md)
+
+Comando rápido:
+```bash
+docker-compose down
+docker-compose up -d --build
+```
+
+---
+
+## �💾 ANTES DE HACER ESTO EN PRODUCCIÓN
 
 ✅ Backup actualizado (en /backups/)  
 ✅ Código en git (en rama feature/flutter-mockup-generator)  

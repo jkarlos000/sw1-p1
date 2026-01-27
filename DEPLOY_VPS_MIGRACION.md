@@ -108,18 +108,19 @@ docker-entrypoint-initdb.d/ se ejecuta en orden:
 
 ### FASE 1: Preparación en Local (Antes de Subir)
 
-#### 1.1 Actualizar tu rama local
+#### 1.1 Confirmar que estás en la rama correcta
 
 ```bash
 # En tu máquina local
 cd /ruta/al/proyecto
 
-# Sincronizar con main
-git fetch origin
-git rebase origin/main
+# Verificar rama actual
+git branch -v
+# Debe mostrar: * feature/flutter-mockup-generator
 
-# O si prefieres merge
-git merge origin/main
+# Si no estás en esa rama
+git checkout feature/flutter-mockup-generator
+git pull origin feature/flutter-mockup-generator
 ```
 
 #### 1.2 Verificar que todo compila
@@ -199,35 +200,34 @@ SELECT COUNT(*) FROM flutter_component;
 
 ### FASE 3: Descargar Cambios en VPS
 
-#### 3.1 Pull de cambios
+#### 3.1 Configurar rama correcta
 
 ```bash
 # En VPS, en el directorio del proyecto
-git fetch origin
-git status
+cd /home/sw1/jk
+
+# Ver rama actual
+git branch -v
+
+# Si NO estás en feature/flutter-mockup-generator
+git checkout feature/flutter-mockup-generator
+git pull origin feature/flutter-mockup-generator
 
 # Ver qué ha cambiado
-git diff origin/main..HEAD
-
-# O si estás en una rama diferente de main:
-git status
-git log --oneline -5
+git log --oneline -10
 ```
 
-#### 3.2 Decidir sobre la rama
+#### 3.2 Limpiar cambios locales (si existen)
 
-**Opción A: Actualizar actual a main**
 ```bash
-git checkout main
-git pull origin main
-```
+# Si hiciste cambios locales que quieres descartar
+git stash
 
-**Opción B: Crear rama de producción (Recomendado)**
-```bash
-# Crear rama de deployment
-git checkout -b prod/flutter-screens
-git pull origin main
-# Esto te permite rollback fácil si necesitas
+# Si tienes archivos no tracked que conflictúan
+git clean -fd
+
+# Ahora sí, actualizar
+git pull origin feature/flutter-mockup-generator
 ```
 
 ---

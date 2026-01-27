@@ -17,8 +17,9 @@
 ### Proyecto Local
 - ✅ Frontend compilado
 - ✅ Backend compilado
-- ✅ Nueva rama con Flutter Screens feature
+- ✅ Nueva rama `feature/flutter-mockup-generator` con Flutter Screens feature
 - ✅ Documentación completa
+- ✅ .gitignore actualizado
 
 ---
 
@@ -129,10 +130,10 @@ verify-pre-deploy.sh
 # 1. Verificar que todo está listo
 ./verify-pre-deploy.sh
 
-# 2. Si pasa: Commit y push
+# 2. Si pasa: Commit y push a tu rama
 git add .
 git commit -m 'feat: Flutter Screens + VPS Deploy Config'
-git push origin main
+git push origin feature/flutter-mockup-generator
 ```
 
 ### En VPS (Producción)
@@ -140,15 +141,15 @@ git push origin main
 ```bash
 # 1. Conectar
 ssh root@uml.jkhoster.com
-cd /var/www/uml-flutter
+cd /home/sw1/jk
 
-# 2. BACKUP INMEDIATO (fundamental)
+# 2. Cambiar a la rama correcta
+git checkout feature/flutter-mockup-generator
+git pull origin feature/flutter-mockup-generator
+
+# 3. BACKUP INMEDIATO (fundamental)
 chmod +x backend-p1sw1/database/backup-vps.sh
 ./backend-p1sw1/database/backup-vps.sh
-
-# 3. Actualizar código
-git fetch origin
-git pull origin main
 
 # 4. Redeploy con migración
 docker-compose down
@@ -231,14 +232,15 @@ docker-compose ps  # Todos deben estar "Up (healthy)"
 ☐ Backend compila sin errores
 ☐ Frontend compila sin errores
 ☐ Cambios commiteados
-☐ Haz git push origin main
+☐ Haz git push origin feature/flutter-mockup-generator
 ```
 
 ### ✅ DURANTE DEPLOY (En VPS)
 ```
 ☐ Conectar a VPS
+☐ git checkout feature/flutter-mockup-generator
+☐ git pull origin feature/flutter-mockup-generator
 ☐ Ejecutar: backup-vps.sh
-☐ Git pull origin main
 ☐ docker-compose down
 ☐ docker-compose up -d postgres
 ☐ Esperar 2-3 minutos
